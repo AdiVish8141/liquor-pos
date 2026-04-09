@@ -3,12 +3,38 @@ import React, { useState } from 'react';
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Allow any username and password to get through
-    if (onLogin) {
-      onLogin();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store JWT and User info
+        localStorage.setItem('liquor_pos_token', data.access_token);
+        localStorage.setItem('liquor_pos_user', JSON.stringify(data.user));
+        
+        if (onLogin) {
+          onLogin(data.user);
+        }
+      } else {
+        setError(data.msg || 'Login failed. Please try again.');
+      }
+    } catch (err) {
+      setError('Connection refused. Is the Flask server running?');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -46,6 +72,22 @@ export default function Login({ onLogin }) {
         {/* Headings */}
         <h2 style={styles.title}>Staff Login</h2>
         <p style={styles.subtitle}>Please sign in to access the system.</p>
+
+        {error && (
+          <div style={{
+            backgroundColor: '#fef2f2',
+            color: '#ef4444',
+            padding: '12px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            marginBottom: '20px',
+            width: '100%',
+            textAlign: 'center',
+            border: '1px solid #fee2e2'
+          }}>
+            {error}
+          </div>
+        )}
 
         {/* Form Elements */}
         <form style={styles.form} onSubmit={handleSubmit}>
@@ -92,7 +134,17 @@ export default function Login({ onLogin }) {
           </div>
 
           {/* Submit Button */}
-          <button type="submit" style={styles.loginButton}>Login</button>
+          <button 
+            type="submit" 
+            style={{ 
+              ...styles.loginButton, 
+              opacity: isLoading ? 0.7 : 1, 
+              cursor: isLoading ? 'not-allowed' : 'pointer' 
+            }}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Signing in...' : 'Login'}
+          </button>
         </form>
       </div>
 

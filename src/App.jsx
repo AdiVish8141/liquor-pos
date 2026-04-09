@@ -2,13 +2,55 @@ import { useEffect, useState } from 'react';
 import './index.css';
 import Login from './Login';
 import Home from './Home';
+import CustomerDisplay from './CustomerDisplay';
 
 export default function App() {
   const [progress, setProgress] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isCustomerDisplay, setIsCustomerDisplay] = useState(false);
 
   useEffect(() => {
+    // Check if we are in customer display mode
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('customer-display') === 'true') {
+      setIsCustomerDisplay(true);
+    }
+
+    // Check for existing session
+    const checkSession = async () => {
+      const token = localStorage.getItem('liquor_pos_token');
+      const user = localStorage.getItem('liquor_pos_user');
+      
+      if (token && user) {
+        try {
+          const res = await fetch('http://localhost:5000/api/auth/verify', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (res.ok) {
+            const userData = await res.json();
+            setIsLoggedIn(true);
+            setCurrentUser(userData);
+          } else {
+            // Token likely expired or invalid
+            localStorage.removeItem('liquor_pos_token');
+            localStorage.removeItem('liquor_pos_user');
+            setIsLoggedIn(false);
+          }
+        } catch (err) {
+          console.error("Session verification failed", err);
+        }
+      }
+      setIsLoaded(true);
+    };
+
+    checkSession();
+  }, []);
+
+  useEffect(() => {
+    if (isCustomerDisplay) return;
     if (isLoaded) return;
     // Simulate loading progress
     const interval = setInterval(() => {
@@ -25,14 +67,21 @@ export default function App() {
     }, 150);
 
     return () => clearInterval(interval);
-  }, [isLoaded]);
+  }, [isLoaded, isCustomerDisplay]);
+
+  if (isCustomerDisplay) {
+    return <CustomerDisplay />;
+  }
 
   if (isLoggedIn) {
     return <Home />;
   }
 
   if (isLoaded) {
-    return <Login onLogin={() => setIsLoggedIn(true)} />;
+    return <Login onLogin={(user) => {
+      setIsLoggedIn(true);
+      setCurrentUser(user);
+    }} />;
   }
 
   return (
