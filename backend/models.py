@@ -49,6 +49,7 @@ class Product(db.Model):
     tax_category = db.Column(db.String(50), default='Liquor')
     deposit = db.Column(db.Float, default=0.0)
     age_verified = db.Column(db.Boolean, default=True)
+    return_policy = db.Column(db.String(50), default='Returnable') # Returnable, Manager Approval, Final Sale
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -67,7 +68,8 @@ class Product(db.Model):
             "discount": self.discount,
             "taxCategory": self.tax_category,
             "deposit": self.deposit,
-            "ageVerified": self.age_verified
+            "ageVerified": self.age_verified,
+            "return_policy": self.return_policy
         }
 
 class Customer(db.Model):
@@ -125,6 +127,53 @@ class TransactionItem(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Float, nullable=False) # Price at time of sale
+    product = db.relationship('Product')
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "product_id": self.product_id,
+            "product_name": self.product.name if self.product else None,
+            "product_sku": self.product.sku if self.product else None,
+            "return_policy": self.product.return_policy if self.product else "Returnable",
+            "quantity": self.quantity,
+            "unit_price": self.unit_price
+        }
+
+
+class Return(db.Model):
+    __tablename__ = 'returns'
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.BigInteger, db.ForeignKey('transactions.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    reason = db.Column(db.String(500), nullable=False)
+    refund_method = db.Column(db.String(50), nullable=False)
+    subtotal = db.Column(db.Float, nullable=False)
+    tax = db.Column(db.Float, nullable=False)
+    total = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    items = db.relationship('ReturnItem', backref='return_record', lazy=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "transaction_id": self.transaction_id,
+            "reason": self.reason,
+            "refund_method": self.refund_method,
+            "subtotal": self.subtotal,
+            "tax": self.tax,
+            "total": self.total,
+            "created_at": self.created_at.isoformat()
+        }
+
+
+class ReturnItem(db.Model):
+    __tablename__ = 'return_items'
+    id = db.Column(db.Integer, primary_key=True)
+    return_id = db.Column(db.Integer, db.ForeignKey('returns.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    unit_price = db.Column(db.Float, nullable=False)
 
     def to_dict(self):
         return {

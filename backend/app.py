@@ -4,7 +4,7 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from models import db, User, Product, Customer, Transaction, TransactionItem
+from models import db, User, Product, Customer, Transaction, TransactionItem, Return, ReturnItem
 
 # Load environment variables
 load_dotenv()
@@ -183,6 +183,120 @@ def get_transactions():
         data['customer_name'] = t.customer.name if t.customer else "Walk-in"
         results.append(data)
     return jsonify(results), 200
+
+
+@app.route('/api/transactions/<int:txn_id>', methods=['GET'])
+@jwt_required()
+def get_transaction(txn_id):
+    """Return a single transaction with its items and product details, including already returned qty."""
+    txn = Transaction.query.get(txn_id)
+    if not txn:
+        return jsonify({"msg": "Transaction not found"}), 404
+    data = txn.to_dict()
+    data['customer_name'] = txn.customer.name if txn.customer else "Walk-in"
+    
+    # Calculate already returned quantities for this transaction
+    for item_data in data['items']:
+        product_id = item_data['product_id']
+        total_returned = db.session.query(db.func.sum(ReturnItem.quantity))\
+            .join(Return)\
+            .filter(Return.transaction_id == txn_id, ReturnItem.product_id == product_id)\
+            .scalar() or 0
+        item_data['returned_quantity'] = int(total_returned)
+
+    return jsonify(data), 200
+
+
+@app.route('/api/returns', methods=['POST'])
+@jwt_required()
+def create_return():
+    """Process a return: validate, reverse stock, persist to DB."""
+    data = request.get_json()
+    current_username = get_jwt_identity()
+    user = User.query.filter_by(username=current_username).first()
+
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    txn_id = data.get('transaction_id')
+    txn = Transaction.query.get(txn_id)
+    if not txn:
+        return jsonify({"msg": "Original transaction not found"}), 404
+
+    items = data.get('items', [])  # [{product_id, quantity, unit_price}]
+    if not items:
+        return jsonify({"msg": "No items selected for return"}), 400
+
+    reason = data.get('reason', '')
+    refund_method = data.get('refund_method', '')
+    subtotal = data.get('subtotal', 0.0)
+    tax = data.get('tax', 0.0)
+    total = data.get('total', 0.0)
+
+    try:
+        new_return = Return(
+            transaction_id=txn_id,
+            user_id=user.id,
+            reason=reason,
+            refund_method=refund_method,
+            subtotal=subtotal,
+            tax=tax,
+            total=total
+        )
+        db.session.add(new_return)
+        db.session.flush()  # get the return id
+
+        for item in items:
+            product_id = item['product_id']
+            qty = item['quantity']
+            unit_price = item['unit_price']
+
+            product = Product.query.get(product_id)
+            if not product:
+                db.session.rollback()
+                return jsonify({"msg": f"Product ID {product_id} not found"}), 404
+
+            # Validate qty against what was purchased in the original transaction
+            original_item = next(
+                (i for i in txn.items if i.product_id == product_id), None
+            )
+            if not original_item:
+                db.session.rollback()
+                return jsonify({"msg": f"Product {product.name} was not in the original transaction"}), 400
+            
+            # Sum up all previously returned quantities for this item
+            total_previously_returned = db.session.query(db.func.sum(ReturnItem.quantity))\
+                .join(Return)\
+                .filter(Return.transaction_id == txn_id, ReturnItem.product_id == product_id)\
+                .scalar() or 0
+            
+            remaining_returnable = original_item.quantity - total_previously_returned
+            
+            if qty > remaining_returnable:
+                db.session.rollback()
+                return jsonify({
+                    "msg": f"Requested return for {product.name} ({qty}) exceeds remaining returnable quantity ({remaining_returnable})"
+                }), 400
+
+            # Reverse stock
+            product.stock += qty
+
+            return_item = ReturnItem(
+                return_id=new_return.id,
+                product_id=product_id,
+                quantity=qty,
+                unit_price=unit_price
+            )
+            db.session.add(return_item)
+
+        db.session.commit()
+        return jsonify(new_return.to_dict()), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Return error: {e}")
+        return jsonify({"msg": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

@@ -89,28 +89,32 @@ export default function Home() {
 
   // Process Return Detailed State
   const [isReturnItemsViewOpen, setIsReturnItemsViewOpen] = useState(false);
-  const [returnItems, setReturnItems] = useState([
-    { id: 101, name: 'Grey Goose Vodka', sku: '789012', purchasedQty: 2, price: 45.00, eligibility: 'Returnable', bg: '#f1f5f9' },
-    { id: 102, name: 'Patron Silver Tequila', sku: '345678', purchasedQty: 1, price: 24.00, eligibility: 'Manager Approval', bg: '#fffbeb' },
-    { id: 103, name: 'Cabernet Sauvignon', sku: '123456', purchasedQty: 1, price: 15.50, eligibility: 'Final Sale', bg: '#fef2f2' },
-  ]);
+  const [returnItems, setReturnItems] = useState([]);
+  const [fetchedTransaction, setFetchedTransaction] = useState(null);
+  const [isReturnLookupLoading, setIsReturnLookupLoading] = useState(false);
+  const [returnLookupError, setReturnLookupError] = useState(null);
+  const [isRefundSuccessOpen, setIsRefundSuccessOpen] = useState(false);
+  const [refundDetails, setRefundDetails] = useState({ id: '', amount: 0, method: '' });
   const [selectedReturnIds, setSelectedReturnIds] = useState([]);
-  const [returnQuantities, setReturnQuantities] = useState({ 101: 1, 102: 1, 103: 0 });
+  const [returnQuantities, setReturnQuantities] = useState({});
 
-  const toggleReturnItem = (id) => {
+  const toggleReturnItem = (productId) => {
     setSelectedReturnIds(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
     );
   };
 
-  const updateReturnQty = (id, val, max) => {
-    const qty = Math.max(0, Math.min(max, parseInt(val) || 0));
-    setReturnQuantities(prev => ({ ...prev, [id]: qty }));
-    if (qty > 0 && !selectedReturnIds.includes(id)) {
-      setSelectedReturnIds(prev => [...prev, id]);
-    } else if (qty === 0 && selectedReturnIds.includes(id)) {
-      setSelectedReturnIds(prev => prev.filter(i => i !== id));
-    }
+  const handleReturnQtyChange = (productId, delta) => {
+    const item = returnItems.find(i => i.id === productId);
+    if (!item) return;
+
+    setReturnQuantities(prev => {
+      const current = prev[productId] || 0;
+      const next = Math.max(1, Math.min(item.purchasedQty, current + delta));
+      return { ...prev, [productId]: next };
+    });
   };
 
   // Return Confirmation State
@@ -330,9 +334,22 @@ export default function Home() {
     setSelectedCustomer(null);
     setCustomerSearch('');
     setProductSearch('');
-    setIsPaymentSuccessOpen(false);
     setActiveNavTab('POS');
     setHasVerifiedAgeThisSession(false);
+
+    // Clear Return state
+    setReturnItems([]);
+    setSelectedReturnIds([]);
+    setReturnQuantities({});
+    setSelectedReturnReason('');
+    setCustomReturnReason('');
+    setSelectedRefundMethod('');
+    setIsReturnItemsViewOpen(false);
+    setReturnTransactionId('');
+    setReturnReceiptBarcode('');
+    setReturnLookupError(null);
+    setFetchedTransaction(null);
+
     // Reset for next customer — allow a fresh display window to open
     customerDisplayWindowRef.current = null;
     localStorage.removeItem('liquorpos_cart_snapshot');
@@ -450,8 +467,8 @@ export default function Home() {
         setSelectedCustomer({ ...newCustomer, initials, color: '#eff6ff', textColor: '#3b82f6' });
 
         if (pendingProductToCart) {
-            processAgeVerificationAndAdd(pendingProductToCart);
-            setPendingProductToCart(null);
+          processAgeVerificationAndAdd(pendingProductToCart);
+          setPendingProductToCart(null);
         }
       } else {
         const errorData = await response.json();
@@ -503,10 +520,149 @@ export default function Home() {
 
 
   const handleProcessReturnFromHistory = (txnId) => {
-    setReturnTransactionId(txnId);
+    setReturnTransactionId(String(txnId));
     setActiveNavTab('Process Return');
-    // Auto-triggering the items view to simulate a successful lookup
-    setIsReturnItemsViewOpen(true);
+    fetchTransactionForReturn(String(txnId));
+  };
+
+  const fetchTransactionForReturn = async (idStr) => {
+    const id = parseInt(idStr.trim(), 10);
+    if (!id || isNaN(id)) {
+      setReturnLookupError('Please enter a valid numeric Transaction ID.');
+      return;
+    }
+    setIsReturnLookupLoading(true);
+    setReturnLookupError(null);
+    setFetchedTransaction(null);
+    setReturnItems([]);
+    setSelectedReturnIds([]);
+    setReturnQuantities({});
+    try {
+      const token = localStorage.getItem('liquor_pos_token');
+      const response = await fetch(`${API_BASE_URL}/api/transactions/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const txn = await response.json();
+        setFetchedTransaction(txn);
+        // Map transaction items into the return table format, accounting for items already returned
+        const mapped = txn.items.map(item => {
+          const original = item.quantity;
+          const returned = item.returned_quantity || 0;
+          const remaining = Math.max(0, original - returned);
+
+          return {
+            id: item.product_id,
+            name: item.product_name || `Product #${item.product_id}`,
+            sku: item.product_sku || '—',
+            originalQty: original,
+            returnedQty: returned,
+            purchasedQty: remaining, // Use remaining as the 'purchased' pool for current session
+            price: item.unit_price,
+            eligibility: remaining === 0 ? 'Fully Returned' : (item.return_policy || 'Returnable'),
+            bg: '#f1f5f9'
+          };
+        });
+        setReturnItems(mapped);
+        // Default return qty = 1 for each item (capped at purchasedQty)
+        const defaultQtys = {};
+        mapped.forEach(item => { defaultQtys[item.id] = Math.min(1, item.purchasedQty); });
+        setReturnQuantities(defaultQtys);
+        setIsReturnItemsViewOpen(true);
+      } else if (response.status === 404) {
+        setReturnLookupError('Transaction not found. Please check the ID and try again.');
+      } else {
+        setReturnLookupError('An error occurred. Please try again.');
+      }
+    } catch (err) {
+      console.error('Return lookup error:', err);
+      setReturnLookupError('Network error: Could not reach the server.');
+    } finally {
+      setIsReturnLookupLoading(false);
+    }
+  };
+
+  const submitReturnTransaction = async () => {
+    if (!fetchedTransaction) return;
+
+    // Prepare items payload: only selected items with non-zero qty
+    const itemsToReturn = selectedReturnIds
+      .map(id => {
+        const item = returnItems.find(i => i.id === id);
+        const qty = returnQuantities[id] || 0;
+        if (qty > 0) {
+          return {
+            product_id: id,
+            quantity: qty,
+            unit_price: item.price
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    if (itemsToReturn.length === 0) {
+      alert("Please select at least one item to return.");
+      return;
+    }
+
+    const payload = {
+      transaction_id: fetchedTransaction.id,
+      items: itemsToReturn,
+      reason: selectedReturnReason === 'Other (Specify)' ? customReturnReason : selectedReturnReason,
+      refund_method: selectedRefundMethod,
+      subtotal: returnSubtotal,
+      tax: returnTax,
+      total: returnTotal
+    };
+
+    try {
+      const token = localStorage.getItem('liquor_pos_token');
+      const response = await fetch(`${API_BASE_URL}/api/returns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        // Success!
+        setIsRefundMethodModalOpen(false);
+        if (requiresManagerApproval) {
+          setIsReturnRequestSuccessOpen(true);
+        } else {
+          // Open the new Refund Success UI
+          setRefundDetails({
+            id: String(fetchedTransaction.id).padStart(12, '0'),
+            amount: returnTotal,
+            method: selectedRefundMethod,
+            date: new Date().toLocaleDateString()
+          });
+          setIsRefundSuccessOpen(true);
+          resetPOS(); // Clears return state
+        }
+
+        // Refresh global state
+        const [prodRes, txnRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/products`),
+          fetch(`${API_BASE_URL}/api/transactions`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]);
+
+        if (prodRes.ok) setProducts(await prodRes.json());
+        if (txnRes.ok) setPastTransactions(await txnRes.json());
+
+      } else {
+        const err = await response.json();
+        alert(`Refund Error: ${err.msg || 'Unknown error occurred.'}`);
+      }
+    } catch (err) {
+      console.error('Refund submission error:', err);
+      alert('Network error: Could not process refund.');
+    }
   };
 
   return (
@@ -515,16 +671,16 @@ export default function Home() {
       {/* Top Header */}
       <header style={styles.topHeader}>
         <div style={styles.headerLeft}>
-          <div style={{...styles.logoBlueSquare, cursor: 'pointer', backgroundColor: '#0f172a', border: '1px solid #1e293b'}} onClick={() => setIsAddProductModalOpen(true)}>
+          <div style={{ ...styles.logoBlueSquare, cursor: 'pointer', backgroundColor: '#0f172a', border: '1px solid #1e293b' }} onClick={() => setIsAddProductModalOpen(true)}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               {/* Glass base and stem */}
               <path d="M8 22h8" />
               <path d="M12 11v11" />
               <path d="M19 3l-7 8-7-8Z" />
-              
+
               {/* Lemon garnish */}
               <circle cx="6" cy="6" r="3.5" stroke="#fde047" strokeWidth="2" fill="#fef08a" />
-              
+
               {/* Stir and Cherry */}
               <line x1="15" y1="8" x2="20" y2="3" stroke="#e2e8f0" strokeWidth="1.5" />
               <circle cx="20" cy="3" r="2" fill="#ef4444" stroke="none" />
@@ -709,62 +865,94 @@ export default function Home() {
                 <div style={styles.returnItemListSection}>
                   <div style={styles.returnHeaderSection}>
                     <h1 style={styles.returnMainTitle}>Process Return</h1>
-                    <p style={styles.returnMetadata}>Original Transaction: #8472619A | Purchase Date: Oct 26, 2023</p>
+                    <p style={styles.returnMetadata}>
+                      Original Transaction: #{String(fetchedTransaction.id).padStart(12, '0')} |
+                      Purchase Date: {new Date(fetchedTransaction.created_at).toLocaleDateString()}
+                    </p>
                     <p style={styles.returnSelectPrompt}>Select items and quantities to return.</p>
                   </div>
 
                   <table style={styles.returnTable}>
                     <thead>
                       <tr>
-                        <th style={styles.returnTableHeader}><input type="checkbox" onChange={(e) => {
-                          if (e.target.checked) setSelectedReturnIds(returnItems.map(i => i.id));
-                          else setSelectedReturnIds([]);
-                        }} checked={selectedReturnIds.length === returnItems.length} /></th>
+                        <th style={styles.returnTableHeader}>
+                          <input
+                            type="checkbox"
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedReturnIds(returnItems.filter(i => i.purchasedQty > 0).map(i => i.id));
+                              else setSelectedReturnIds([]);
+                            }}
+                            checked={selectedReturnIds.length === returnItems.filter(i => i.purchasedQty > 0).length && returnItems.filter(i => i.purchasedQty > 0).length > 0}
+                          />
+                        </th>
                         <th style={styles.returnTableHeader}>Product</th>
-                        <th style={styles.returnTableHeader}>Purchased</th>
-                        <th style={styles.returnTableHeader}>Return Qty</th>
+                        <th style={styles.returnTableHeader}>Purchase Qty</th>
+                        <th style={styles.returnTableHeader}>Prev. Returned</th>
+                        <th style={styles.returnTableHeader}>Remaining</th>
+                        <th style={styles.returnTableHeader}>Returning NOW</th>
                         <th style={styles.returnTableHeader}>Price</th>
                         <th style={styles.returnTableHeader}>Eligibility</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {returnItems.map(item => (
-                        <tr key={item.id} style={styles.returnRow}>
-                          <td style={{ ...styles.returnCell, ...styles.returnCellFirst }}>
-                            <input type="checkbox" checked={selectedReturnIds.includes(item.id)} onChange={() => toggleReturnItem(item.id)} />
-                          </td>
-                          <td style={styles.returnCell}>
-                            <div style={styles.returnProductInfo}>
-                              <div style={{ ...styles.returnProductImage, backgroundColor: item.bg }}>
-                                <svg width="18" height="32" viewBox="0 0 24 64" fill="none" stroke="#475569" strokeWidth="2"><rect x="5" y="22" width="14" height="40" rx="3" fill="#ffffff" /><rect x="8" y="2" width="8" height="8" rx="2" fill="#94a3b8" /></svg>
+                      {returnItems.map(item => {
+                        const isSelected = selectedReturnIds.includes(item.id);
+                        const isFullyReturned = item.purchasedQty <= 0;
+
+                        return (
+                          <tr key={item.id} style={{ ...styles.returnRow, opacity: isFullyReturned ? 0.6 : 1 }}>
+                            <td style={{ ...styles.returnCell, ...styles.returnCellFirst }}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleReturnItem(item.id)}
+                                disabled={isFullyReturned}
+                              />
+                            </td>
+                            <td style={styles.returnCell}>
+                              <div style={styles.returnProductInfo}>
+                                <div style={{ ...styles.returnProductImage, backgroundColor: item.bg }}>
+                                  <svg width="18" height="32" viewBox="0 0 24 64" fill="none" stroke="#475569" strokeWidth="2"><rect x="5" y="22" width="14" height="40" rx="3" fill="#ffffff" /><rect x="8" y="2" width="8" height="8" rx="2" fill="#94a3b8" /></svg>
+                                </div>
+                                <div>
+                                  <div style={styles.returnProductName}>{item.name}</div>
+                                  <div style={styles.returnProductSku}>SKU: {item.sku}</div>
+                                </div>
                               </div>
-                              <div>
-                                <div style={styles.returnProductName}>{item.name}</div>
-                                <div style={styles.returnProductSku}>SKU: {item.sku}</div>
+                            </td>
+                            <td style={styles.returnCell}>{item.originalQty}</td>
+                            <td style={{ ...styles.returnCell, color: item.returnedQty > 0 ? '#ef4444' : '#64748b' }}>
+                              {item.returnedQty}
+                            </td>
+                            <td style={{ ...styles.returnCell, fontWeight: '700' }}>{item.purchasedQty}</td>
+                            <td style={styles.returnCell}>
+                              <div style={styles.qtyContainer}>
+                                <button
+                                  style={styles.qtyBtn}
+                                  onClick={() => handleReturnQtyChange(item.id, -1)}
+                                  disabled={!isSelected || isFullyReturned}
+                                >-</button>
+                                <div style={styles.qtyValue}>{returnQuantities[item.id] || 0}</div>
+                                <button
+                                  style={styles.qtyBtn}
+                                  onClick={() => handleReturnQtyChange(item.id, 1)}
+                                  disabled={!isSelected || isFullyReturned}
+                                >+</button>
                               </div>
-                            </div>
-                          </td>
-                          <td style={styles.returnCell}>{item.purchasedQty}</td>
-                          <td style={styles.returnCell}>
-                            <input
-                              type="number"
-                              style={styles.returnQtyInput}
-                              value={returnQuantities[item.id]}
-                              onChange={(e) => updateReturnQty(item.id, e.target.value, item.purchasedQty)}
-                            />
-                          </td>
-                          <td style={styles.returnCell}>${item.price.toFixed(2)}</td>
-                          <td style={{ ...styles.returnCell, ...styles.returnCellLast }}>
-                            <span style={{
-                              ...styles.returnBadge,
-                              backgroundColor: item.eligibility === 'Returnable' ? '#ecfdf5' : item.eligibility === 'Manager Approval' ? '#fffbeb' : '#fef2f2',
-                              color: item.eligibility === 'Returnable' ? '#10b981' : item.eligibility === 'Manager Approval' ? '#d97706' : '#ef4444'
-                            }}>
-                              {item.eligibility}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td style={styles.returnCell}>${item.price.toFixed(2)}</td>
+                            <td style={{ ...styles.returnCell, ...styles.returnCellLast }}>
+                              <span style={{
+                                ...styles.returnBadge,
+                                backgroundColor: item.eligibility === 'Returnable' ? '#ecfdf5' : item.eligibility === 'Manager Approval' ? '#fffbeb' : '#f1f5f9',
+                                color: item.eligibility === 'Returnable' ? '#10b981' : item.eligibility === 'Manager Approval' ? '#d97706' : '#64748b'
+                              }}>
+                                {item.eligibility}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -779,7 +967,7 @@ export default function Home() {
                         return (
                           <div key={id} style={styles.returnSummaryItem}>
                             <span>{item.name} (x{returnQuantities[id]})</span>
-                            <span>${(item.price * returnQuantities[id]).toFixed(2)}</span>
+                            <span>${(item?.price * returnQuantities[id] || 0).toFixed(2)}</span>
                           </div>
                         );
                       })}
@@ -823,8 +1011,21 @@ export default function Home() {
                     </div>
                   </div>
                   <label style={styles.processReturnLabel}>Receipt Barcode</label>
-                  <input type="text" placeholder="Scan barcode here..." style={styles.processReturnInput} value={returnReceiptBarcode} onChange={e => setReturnReceiptBarcode(e.target.value)} />
-                  <button style={styles.processReturnFindBtn} onClick={() => setIsReturnItemsViewOpen(true)}>Find Receipt</button>
+                  <input
+                    type="text"
+                    placeholder="Scan barcode here..."
+                    style={styles.processReturnInput}
+                    value={returnReceiptBarcode}
+                    onChange={e => setReturnReceiptBarcode(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && fetchTransactionForReturn(returnReceiptBarcode)}
+                  />
+                  <button
+                    style={{ ...styles.processReturnFindBtn, opacity: isReturnLookupLoading ? 0.7 : 1 }}
+                    onClick={() => fetchTransactionForReturn(returnReceiptBarcode)}
+                    disabled={isReturnLookupLoading}
+                  >
+                    {isReturnLookupLoading ? 'Searching...' : 'Find Receipt'}
+                  </button>
                 </div>
 
                 {/* Card 2 */}
@@ -839,8 +1040,21 @@ export default function Home() {
                     </div>
                   </div>
                   <label style={styles.processReturnLabel}>Transaction ID</label>
-                  <input type="text" placeholder="Enter transaction ID..." style={styles.processReturnInput} value={returnTransactionId} onChange={e => setReturnTransactionId(e.target.value)} />
-                  <button style={styles.processReturnFindBtn} onClick={() => setIsReturnItemsViewOpen(true)}>Find Receipt</button>
+                  <input
+                    type="text"
+                    placeholder="Enter transaction ID..."
+                    style={styles.processReturnInput}
+                    value={returnTransactionId}
+                    onChange={e => setReturnTransactionId(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && fetchTransactionForReturn(returnTransactionId)}
+                  />
+                  <button
+                    style={{ ...styles.processReturnFindBtn, opacity: isReturnLookupLoading ? 0.7 : 1 }}
+                    onClick={() => fetchTransactionForReturn(returnTransactionId)}
+                    disabled={isReturnLookupLoading}
+                  >
+                    {isReturnLookupLoading ? 'Searching...' : 'Find Receipt'}
+                  </button>
                 </div>
 
                 {/* Card 3 */}
@@ -858,6 +1072,11 @@ export default function Home() {
                   <button style={styles.processReturnManualBtn}>Proceed to Manual Return</button>
                 </div>
 
+                {returnLookupError && (
+                  <div style={{ position: 'absolute', bottom: '-60px', left: '0', right: '0', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#ef4444', padding: '12px 16px', borderRadius: '8px', textAlign: 'center', fontSize: '14px', fontWeight: '500' }}>
+                    {returnLookupError}
+                  </div>
+                )}
               </div>
             )
           ) : activeNavTab === 'Lookup Transaction' ? (
@@ -898,11 +1117,11 @@ export default function Home() {
                       <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No transactions found.</td></tr>
                     ) : (
                       pastTransactions
-                        .filter(t => {
+                        .filter(txn => {
                           const query = txnSearchQuery.toLowerCase();
-                          const stringId = String(t.id).padStart(12, '0');
-                          return stringId.includes(query) ||
-                            (t.customer_name && t.customer_name.toLowerCase().includes(query));
+                          const stringId = String(txn.id).padStart(12, '0');
+                          const customerName = (txn.customer_name || '').toLowerCase();
+                          return stringId.includes(query) || customerName.includes(query);
                         })
                         .map(txn => (
                           <tr key={txn.id} style={styles.historyRow}>
@@ -917,7 +1136,7 @@ export default function Home() {
                                 <div style={{ ...styles.avatarSmall, backgroundColor: txn.customer_id ? '#eff6ff' : '#f8fafc', color: txn.customer_id ? '#3b82f6' : '#94a3b8' }}>
                                   {txn.customer_name ? txn.customer_name.charAt(0) : 'W'}
                                 </div>
-                                <span>{txn.customer_name}</span>
+                                <span>{txn.customer_name || "Walk-in"}</span>
                               </div>
                             </td>
                             <td style={styles.historyTd}>
@@ -929,7 +1148,12 @@ export default function Home() {
                               ${txn.total.toFixed(2)}
                             </td>
                             <td style={styles.historyTd}>
-                              <button style={styles.historyActionBtn}>View Details</button>
+                              <button
+                                style={{ ...styles.historyActionBtn, backgroundColor: '#0ea5e9', color: 'white' }}
+                                onClick={() => handleProcessReturnFromHistory(txn.id)}
+                              >
+                                Process Return
+                              </button>
                             </td>
                           </tr>
                         ))
@@ -1811,20 +2035,7 @@ export default function Home() {
                   padding: '0 32px'
                 }}
                 disabled={!selectedRefundMethod}
-                onClick={() => {
-                  setIsRefundMethodModalOpen(false);
-                  if (requiresManagerApproval) {
-                    setIsReturnRequestSuccessOpen(true);
-                  } else {
-                    resetPOS();
-                  }
-                  // Clean up return-specific state
-                  setSelectedReturnReason('');
-                  setCustomReturnReason('');
-                  setSelectedRefundMethod('');
-                  setSelectedReturnIds([]);
-                  setIsReturnItemsViewOpen(false);
-                }}
+                onClick={submitReturnTransaction}
               >
                 Confirm Refund
               </button>
@@ -1857,6 +2068,49 @@ export default function Home() {
         </div>
       )}
 
+      {/* Refund Success Overlay */}
+      {isRefundSuccessOpen && (
+        <div style={styles.paymentViewContainer}>
+          <div style={{ ...styles.successCard, borderTop: '4px solid #0ea5e9' }}>
+            <div style={{ ...styles.successIconCircle, backgroundColor: '#f0f9ff' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+            </div>
+            <h2 style={{ ...styles.successTitle, color: '#0f172a' }}>Refund Successful</h2>
+            <p style={styles.successSubtitle}>The refund has been processed and stock reversed.</p>
+
+            <div style={{ ...styles.successAmountSection, backgroundColor: '#f8fafc', borderRadius: '12px', padding: '24px' }}>
+              <span style={{ ...styles.successAmountLabel, color: '#64748b', fontSize: '14px', marginBottom: '8px' }}>Total Refunded Amount</span>
+              <span style={{ ...styles.successAmountValue, color: '#0ea5e9', fontSize: '32px' }}>${refundDetails.amount.toFixed(2)}</span>
+            </div>
+
+            <div style={{ ...styles.successFieldsRow, marginTop: '24px', borderTop: '1px dashed #e2e8f0', paddingTop: '24px' }}>
+              <div style={styles.successFieldItem}>
+                <label style={styles.successFieldLabel}>Refund Method</label>
+                <div style={styles.successFieldValue}>{refundDetails.method}</div>
+              </div>
+              <div style={styles.successFieldItem}>
+                <label style={styles.successFieldLabel}>Original TXN ID</label>
+                <div style={styles.successFieldValue}>{refundDetails.id}</div>
+              </div>
+            </div>
+
+            <div style={{ ...styles.successBtnRow, marginTop: '32px' }}>
+              <button style={{ ...styles.successBtnNewSale, backgroundColor: '#0ea5e9' }} onClick={() => { setIsRefundSuccessOpen(false); resetPOS(); }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                New Sale
+              </button>
+              <button style={styles.successBtnPrint} onClick={() => console.log("Printing refund receipt...")}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                Print Receipt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Payment Success Overlay */}
       {isPaymentSuccessOpen && (
         <div style={styles.paymentViewContainer}>
@@ -1884,7 +2138,7 @@ export default function Home() {
             </div>
 
             <div style={styles.successBtnRow}>
-              <button style={styles.successBtnNewSale} onClick={resetPOS}>
+              <button style={styles.successBtnNewSale} onClick={() => { setIsPaymentSuccessOpen(false); resetPOS(); }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                 New Sale
               </button>
@@ -4050,6 +4304,91 @@ const styles = {
     justifyContent: 'space-between',
     fontSize: '14px',
     color: '#475569',
+  },
+  returnItemsContainer: {
+    display: 'flex',
+    gap: '32px',
+    animation: 'fadeIn 0.3s ease-out',
+  },
+  returnItemListSection: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    padding: '32px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+    border: '1px solid #f1f5f9',
+  },
+  returnHeaderSection: {
+    marginBottom: '32px',
+  },
+  returnMainTitle: {
+    fontSize: '24px',
+    fontWeight: '800',
+    color: '#0f172a',
+    margin: '0 0 8px 0',
+  },
+  returnMetadata: {
+    fontSize: '14px',
+    color: '#0ea5e9',
+    fontWeight: '600',
+    margin: '0 0 4px 0',
+  },
+  returnSelectPrompt: {
+    fontSize: '13px',
+    color: '#64748b',
+    margin: 0,
+  },
+  returnTable: {
+    width: '100%',
+    borderCollapse: 'collapse',
+  },
+  returnTableHeader: {
+    textAlign: 'left',
+    padding: '12px 16px',
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    borderBottom: '2px solid #f1f5f9',
+  },
+  returnRow: {
+    borderBottom: '1px solid #f1f5f9',
+    transition: 'all 0.2s',
+  },
+  returnCell: {
+    padding: '16px',
+    fontSize: '14px',
+    color: '#334155',
+  },
+  returnCellFirst: {
+    paddingLeft: 0,
+  },
+  returnCellLast: {
+    paddingRight: 0,
+  },
+  returnProductInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  returnProductImage: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  returnProductName: {
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  returnProductSku: {
+    fontSize: '11px',
+    color: '#94a3b8',
+    marginTop: '2px',
   },
   returnSummaryTotals: {
     borderTop: '1px solid #f1f5f9',

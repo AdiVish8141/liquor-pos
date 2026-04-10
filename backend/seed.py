@@ -96,7 +96,25 @@ INITIAL_PRODUCTS = [
         "discount": 0.00,
         "tax_category": "Liquor",
         "deposit": 0.10,
-        "age_verified": True
+        "age_verified": True,
+        "return_policy": "Returnable"
+    },
+    {
+        "name": "Grand Marnier 100th",
+        "full_name": "Grand Marnier 100th Anniversary Edition",
+        "sku": "820007645H",
+        "price": 149.99,
+        "stock": 5,
+        "bg": "#fde68a",
+        "category": "Liqueur",
+        "volume": "750ml",
+        "case_bottle": "6",
+        "abv": "40%",
+        "discount": 0.00,
+        "tax_category": "Liquor",
+        "deposit": 0.10,
+        "age_verified": True,
+        "return_policy": "Manager Approval"
     }
 ]
 
