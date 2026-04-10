@@ -17,6 +17,22 @@ const CustomerDisplay = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Hydrate from localStorage snapshot on mount (fixes race condition on first open)
+  useEffect(() => {
+    try {
+      const snapshot = localStorage.getItem('liquorpos_cart_snapshot');
+      if (snapshot) {
+        const { cart: c, subtotal: s, tax: t, total: tot } = JSON.parse(snapshot);
+        setCart(c || []);
+        setSubtotal(s || 0);
+        setTax(t || 0);
+        setTotal(tot || 0);
+      }
+    } catch (e) {
+      // ignore corrupt snapshots
+    }
+  }, []);
+
   useEffect(() => {
     const channel = new BroadcastChannel('liquor-pos-sync');
     

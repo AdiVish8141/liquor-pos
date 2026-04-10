@@ -3,6 +3,10 @@ import './index.css';
 import Login from './Login';
 import Home from './Home';
 import CustomerDisplay from './CustomerDisplay';
+import { API_BASE_URL } from './config';
+
+// Store session check result while animation runs
+const sessionResultRef = { current: null };
 
 export default function App() {
   const [progress, setProgress] = useState(0);
@@ -16,34 +20,35 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('customer-display') === 'true') {
       setIsCustomerDisplay(true);
+      return;
     }
 
-    // Check for existing session
+    // Run session check but DON'T set isLoaded — stash result for after animation
     const checkSession = async () => {
       const token = localStorage.getItem('liquor_pos_token');
       const user = localStorage.getItem('liquor_pos_user');
       
       if (token && user) {
         try {
-          const res = await fetch('http://localhost:5000/api/auth/verify', {
+          const res = await fetch(`${API_BASE_URL}/api/auth/verify`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
           if (res.ok) {
             const userData = await res.json();
-            setIsLoggedIn(true);
-            setCurrentUser(userData);
+            sessionResultRef.current = { loggedIn: true, user: userData };
           } else {
-            // Token likely expired or invalid
             localStorage.removeItem('liquor_pos_token');
             localStorage.removeItem('liquor_pos_user');
-            setIsLoggedIn(false);
+            sessionResultRef.current = { loggedIn: false };
           }
         } catch (err) {
           console.error("Session verification failed", err);
+          sessionResultRef.current = { loggedIn: false };
         }
+      } else {
+        sessionResultRef.current = { loggedIn: false };
       }
-      setIsLoaded(true);
     };
 
     checkSession();
@@ -52,16 +57,22 @@ export default function App() {
   useEffect(() => {
     if (isCustomerDisplay) return;
     if (isLoaded) return;
-    // Simulate loading progress
+    // Simulate loading progress — isLoaded only fires when bar hits 100%
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
-          // Wait half a second at 100% before showing login screen
-          setTimeout(() => setIsLoaded(true), 500);
+          setTimeout(() => {
+            // Apply session result AFTER animation completes
+            const result = sessionResultRef.current;
+            if (result?.loggedIn) {
+              setIsLoggedIn(true);
+              setCurrentUser(result.user);
+            }
+            setIsLoaded(true);
+          }, 500);
           return 100;
         }
-        // Random increment between 2 and 15
         return Math.min(prev + Math.floor(Math.random() * 14) + 2, 100);
       });
     }, 150);

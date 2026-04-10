@@ -26,8 +26,30 @@ jwt = JWTManager(app)
 with app.app_context():
     db.create_all()
 
-@app.route('/api/products', methods=['GET'])
-def get_products():
+@app.route('/api/products', methods=['GET', 'POST'])
+def manage_products():
+    if request.method == 'POST':
+        data = request.get_json()
+        new_product = Product(
+            name=data.get('name'),
+            full_name=data.get('full_name'),
+            sku=data.get('sku'),
+            price=float(data.get('price', 0)),
+            stock=int(data.get('stock', 0)),
+            bg=data.get('bg', '#f1f5f9'),
+            category=data.get('category'),
+            volume=data.get('volume', ''),
+            case_bottle=data.get('case_bottle', ''),
+            abv=data.get('abv', ''),
+            discount=float(data.get('discount', 0.0)),
+            tax_category=data.get('tax_category', 'Liquor'),
+            deposit=float(data.get('deposit', 0.0)),
+            age_verified=bool(data.get('age_verified', True))
+        )
+        db.session.add(new_product)
+        db.session.commit()
+        return jsonify(new_product.to_dict()), 201
+        
     products = Product.query.all()
     return jsonify([p.to_dict() for p in products]), 200
 
