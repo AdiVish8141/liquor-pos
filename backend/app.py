@@ -105,7 +105,8 @@ def create_transaction():
                 transaction_id=new_txn.id,
                 product_id=item['id'],
                 quantity=item['quantity'],
-                unit_price=item['price']
+                unit_price=item['price'],
+                unit_discount=item.get('discount', 0.0)
             )
             db.session.add(txn_item)
             
@@ -157,7 +158,8 @@ def get_customers():
         new_customer = Customer(
             name=data.get('name'),
             phone=data.get('phone'),
-            email=data.get('email')
+            email=data.get('email'),
+            age=data.get('age')
         )
         db.session.add(new_customer)
         db.session.commit()
@@ -165,6 +167,29 @@ def get_customers():
     
     customers = Customer.query.all()
     return jsonify([c.to_dict() for c in customers]), 200
+
+@app.route('/api/customers/<int:customer_id>/verify', methods=['POST'])
+@jwt_required()
+def verify_customer_age(customer_id):
+    data = request.get_json()
+    customer = Customer.query.get(customer_id)
+    if not customer:
+        return jsonify({"msg": "Customer not found"}), 404
+        
+    try:
+        new_age = int(data.get('age', 0))
+        if new_age <= 0:
+            return jsonify({"msg": "Invalid age"}), 400
+            
+        customer.age = new_age
+        customer.age_verified_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify(customer.to_dict()), 200
+    except ValueError:
+        return jsonify({"msg": "Invalid age format"}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": str(e)}), 500
 
 @app.route('/api/auth/verify', methods=['GET'])
 @jwt_required()
@@ -232,6 +257,16 @@ def create_return():
     subtotal = data.get('subtotal', 0.0)
     tax = data.get('tax', 0.0)
     total = data.get('total', 0.0)
+
+    # Safety Check: Ensure total refunds don't exceed original transaction total
+    total_refunded_so_far = db.session.query(db.func.sum(Return.total))\
+        .filter(Return.transaction_id == txn_id)\
+        .scalar() or 0
+    
+    if (total_refunded_so_far + total) > (txn.total + 0.01): # Adding small buffer for floating point
+        return jsonify({
+            "msg": f"Total refund amount (${total_refunded_so_far + total:.2f}) would exceed original transaction total (${txn.total:.2f})"
+        }), 400
 
     try:
         new_return = Return(

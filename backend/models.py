@@ -49,6 +49,7 @@ class Product(db.Model):
     tax_category = db.Column(db.String(50), default='Liquor')
     deposit = db.Column(db.Float, default=0.0)
     age_verified = db.Column(db.Boolean, default=True)
+    image_url = db.Column(db.String(500), nullable=True)
     return_policy = db.Column(db.String(50), default='Returnable') # Returnable, Manager Approval, Final Sale
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -69,6 +70,7 @@ class Product(db.Model):
             "taxCategory": self.tax_category,
             "deposit": self.deposit,
             "ageVerified": self.age_verified,
+            "image_url": self.image_url,
             "return_policy": self.return_policy
         }
 
@@ -79,6 +81,8 @@ class Customer(db.Model):
     phone = db.Column(db.String(20), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False)
+    age = db.Column(db.Integer, nullable=True)
+    age_verified_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -86,7 +90,9 @@ class Customer(db.Model):
             "id": self.id,
             "phone": self.phone,
             "name": self.name,
-            "email": self.email
+            "email": self.email,
+            "age": self.age,
+            "age_verified_at": self.age_verified_at.isoformat() if self.age_verified_at else None
         }
 
 class Transaction(db.Model):
@@ -104,6 +110,7 @@ class Transaction(db.Model):
     # Relationships
     items = db.relationship('TransactionItem', backref='transaction', lazy=True)
     customer = db.relationship('Customer', backref='transactions')
+    returns = db.relationship('Return', backref='transaction_record', lazy=True)
 
     def to_dict(self):
         return {
@@ -111,13 +118,15 @@ class Transaction(db.Model):
             "user_id": self.user_id,
             "customer_id": self.customer_id,
             "customer_name": self.customer.name if self.customer else "Walk-in",
+            "customer_age": self.customer.age if self.customer else None,
             "subtotal": self.subtotal,
             "tax": self.tax,
             "discount": self.discount,
             "total": self.total,
             "payment_method": self.payment_method,
             "created_at": self.created_at.isoformat(),
-            "items": [item.to_dict() for item in self.items]
+            "items": [item.to_dict() for item in self.items],
+            "returns": [r.to_dict() for r in self.returns]
         }
 
 class TransactionItem(db.Model):
@@ -126,7 +135,8 @@ class TransactionItem(db.Model):
     transaction_id = db.Column(db.BigInteger, db.ForeignKey('transactions.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
-    unit_price = db.Column(db.Float, nullable=False) # Price at time of sale
+    unit_price = db.Column(db.Float, nullable=False) # Gross price at time of sale
+    unit_discount = db.Column(db.Float, default=0.0) # Discount applied per unit
     product = db.relationship('Product')
 
     def to_dict(self):
@@ -137,7 +147,8 @@ class TransactionItem(db.Model):
             "product_sku": self.product.sku if self.product else None,
             "return_policy": self.product.return_policy if self.product else "Returnable",
             "quantity": self.quantity,
-            "unit_price": self.unit_price
+            "unit_price": self.unit_price,
+            "unit_discount": self.unit_discount
         }
 
 
@@ -163,7 +174,8 @@ class Return(db.Model):
             "subtotal": self.subtotal,
             "tax": self.tax,
             "total": self.total,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
+            "items": [item.to_dict() for item in self.items]
         }
 
 
@@ -174,11 +186,13 @@ class ReturnItem(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
+    product = db.relationship('Product')
 
     def to_dict(self):
         return {
             "id": self.id,
             "product_id": self.product_id,
+            "product_name": self.product.name if self.product else "Unknown",
             "quantity": self.quantity,
             "unit_price": self.unit_price
         }

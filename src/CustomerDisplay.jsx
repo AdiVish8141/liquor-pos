@@ -33,6 +33,24 @@ const CustomerDisplay = () => {
     }
   }, []);
 
+  const [user, setUser] = useState(null);
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.charAt(0).toUpperCase();
+  };
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('liquor_pos_user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const channel = new BroadcastChannel('liquor-pos-sync');
     
@@ -72,29 +90,48 @@ const CustomerDisplay = () => {
         `}
       </style>
 
-      {/* Header */}
-      <div style={styles.header}>
+      {/* Top Header Sync with Home.jsx */}
+      <header style={styles.header}>
         <div style={styles.headerLeft}>
           <div style={styles.logoBlueSquare}>
-            <span style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold' }}>+</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 22h8" />
+              <path d="M12 11v11" />
+              <path d="M19 3l-7 8-7-8Z" />
+              <circle cx="6" cy="6" r="3.5" stroke="#fde047" strokeWidth="2" fill="#fef08a" />
+              <line x1="15" y1="8" x2="20" y2="3" stroke="#e2e8f0" strokeWidth="1.5" />
+              <circle cx="20" cy="3" r="2" fill="#ef4444" stroke="none" />
+            </svg>
           </div>
-          <span style={styles.brandName}>Liquor POS</span>
+          <h1 style={styles.brandName}>Liquor POS</h1>
         </div>
 
         <div style={styles.headerRight}>
-          <svg style={styles.iconButton} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg style={styles.iconButton} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
-          <div style={styles.timeRow}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            <span style={styles.timeText}>{currentTime}</span>
+          <svg style={styles.iconButton} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <div
+            style={{
+              ...styles.avatar,
+              background: 'linear-gradient(135deg, #0ea5e9, #6366f1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '2px solid #ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            }}
+          >
+            <span style={{ color: 'white', fontWeight: '800', fontSize: '12px' }}>
+              {getInitials(user?.username || user?.name)}
+            </span>
           </div>
-          <div style={styles.avatar}></div>
         </div>
-      </div>
+      </header>
 
       <div style={styles.mainContent}>
         {/* Left Panel: Cart */}
@@ -118,7 +155,13 @@ const CustomerDisplay = () => {
             ) : (
               cart.map((item, idx) => (
                 <div key={`${item.id}-${idx}`} style={styles.itemRow}>
-                  <img src={item.image} alt={item.name} style={styles.itemImage} />
+                  <div style={{ ...styles.itemImageContainer, backgroundColor: item.image_url ? '#ffffff' : '#f1f5f9' }}>
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.name} style={styles.itemImage} />
+                    ) : (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="10" width="10" height="12" rx="2" /><path d="M10 2v8M14 2v8" /><line x1="10" y1="2" x2="14" y2="2" /></svg>
+                    )}
+                  </div>
                   <div style={styles.itemInfo}>
                     <div style={styles.itemName}>{item.name}</div>
                     <div style={styles.itemQty}>Qty: {item.quantity}</div>
@@ -196,9 +239,9 @@ const styles = {
     overflow: 'hidden',
   },
   header: {
-    height: '88px',
+    height: '64px',
     backgroundColor: '#ffffff',
-    padding: '0 40px',
+    padding: '0 24px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -207,36 +250,36 @@ const styles = {
   headerLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: '20px',
+    gap: '16px',
   },
   logoBlueSquare: {
-    width: '44px',
-    height: '44px',
-    backgroundColor: '#0ea5e9',
-    borderRadius: '12px',
+    width: '32px',
+    height: '32px',
+    backgroundColor: '#0f172a',
+    borderRadius: '8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   brandName: {
-    fontSize: '28px',
+    fontSize: '20px',
     fontWeight: '800',
     color: '#0f172a',
+    margin: 0,
     letterSpacing: '-0.5px',
   },
   headerRight: {
     display: 'flex',
     alignItems: 'center',
-    gap: '20px',
+    gap: '16px',
   },
   iconButton: {
     color: '#64748b',
   },
   avatar: {
-    width: '44px',
-    height: '44px',
-    backgroundColor: '#fde047',
-    borderRadius: '50%',
+    width: '32px',
+    height: '32px',
+    borderRadius: '8px',
   },
   timeRow: {
     display: 'flex',
@@ -251,8 +294,9 @@ const styles = {
   mainContent: {
     flex: 1,
     display: 'flex',
-    padding: '40px',
-    gap: '40px',
+    padding: '24px',
+    gap: '24px',
+    overflow: 'hidden',
   },
   leftPanel: {
     flex: 1,
@@ -264,14 +308,14 @@ const styles = {
     boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
   },
   cartHeaderSection: {
-    padding: '32px 40px',
+    padding: '24px 32px',
     borderBottom: '1px solid #f1f5f9',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   panelTitle: {
-    fontSize: '28px',
+    fontSize: '22px',
     fontWeight: '800',
     color: '#0f172a',
     margin: 0,
@@ -304,15 +348,24 @@ const styles = {
   itemRow: {
     display: 'flex',
     alignItems: 'center',
-    padding: '24px 0',
+    padding: '16px 0',
     borderBottom: '1px solid #f8fafc',
   },
-  itemImage: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '16px',
-    objectFit: 'cover',
+  itemImageContainer: {
+    width: '60px',
+    height: '60px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
     backgroundColor: '#f1f5f9',
+    flexShrink: 0,
+  },
+  itemImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
   },
   itemInfo: {
     flex: 1,
@@ -350,31 +403,31 @@ const styles = {
     fontWeight: '500',
   },
   cartFooter: {
-    padding: '32px 40px',
+    padding: '24px 32px',
     backgroundColor: '#fafafa',
   },
   footerRow: {
     display: 'flex',
     justifyContent: 'space-between',
-    marginBottom: '8px',
+    marginBottom: '6px',
   },
   footerLabel: {
-    fontSize: '16px',
+    fontSize: '14px',
     color: '#64748b',
     fontWeight: '500',
   },
   footerValue: {
-    fontSize: '16px',
+    fontSize: '14px',
     color: '#0f172a',
     fontWeight: '700',
   },
   totalLabel: {
-    fontSize: '24px',
+    fontSize: '20px',
     fontWeight: '800',
     color: '#0f172a',
   },
   totalValue: {
-    fontSize: '32px',
+    fontSize: '28px',
     fontWeight: '900',
     color: '#0ea5e9',
   },
@@ -398,7 +451,7 @@ const styles = {
     objectFit: 'cover',
   },
   promoContent: {
-    padding: '48px',
+    padding: '32px',
     textAlign: 'center',
     flex: 1,
     display: 'flex',
@@ -406,10 +459,10 @@ const styles = {
     justifyContent: 'center',
   },
   promoTitle: {
-    fontSize: '32px',
+    fontSize: '24px',
     fontWeight: '900',
     color: '#0f172a',
-    marginBottom: '20px',
+    marginBottom: '16px',
     lineHeight: '1.2',
   },
   promoSubtitle: {
@@ -433,42 +486,43 @@ const styles = {
   },
   successCard: {
     backgroundColor: '#ffffff',
-    padding: '80px',
-    borderRadius: '40px',
+    padding: '40px 60px',
+    borderRadius: '32px',
     textAlign: 'center',
     boxShadow: '0 30px 100px rgba(0,0,0,0.1)',
-    maxWidth: '600px',
+    maxWidth: '500px',
+    width: '90%',
   },
   successIconBox: {
-    width: '120px',
-    height: '120px',
+    width: '80px',
+    height: '80px',
     backgroundColor: '#ecfdf5',
-    borderRadius: '100px',
+    borderRadius: '40px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    margin: '0 auto 40px auto',
+    margin: '0 auto 24px auto',
   },
   successTitle: {
-    fontSize: '44px',
+    fontSize: '32px',
     fontWeight: '900',
     color: '#0f172a',
-    margin: '0 0 16px 0',
+    margin: '0 0 12px 0',
   },
   successMsg: {
-    fontSize: '20px',
+    fontSize: '16px',
     color: '#64748b',
-    marginBottom: '40px',
+    marginBottom: '24px',
   },
   successAmount: {
-    fontSize: '36px',
+    fontSize: '28px',
     fontWeight: '900',
     color: '#10b981',
     backgroundColor: '#f0fdf4',
-    padding: '24px 48px',
-    borderRadius: '24px',
+    padding: '16px 32px',
+    borderRadius: '16px',
     display: 'inline-block',
-    marginBottom: '32px',
+    marginBottom: '24px',
   },
   receiptNote: {
     fontSize: '15px',

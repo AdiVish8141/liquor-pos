@@ -2,6 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL, CUSTOMER_DISPLAY_URL } from './config';
 
 
+/* ── Reusable Tooltip ────────────────────────────────────────── */
+const Tooltip = ({ label, children, position = 'bottom' }) => {
+  const [visible, setVisible] = useState(false);
+  const tipStyle = {
+    position: 'absolute',
+    ...(position === 'bottom' ? { top: 'calc(100% + 8px)' } : { bottom: 'calc(100% + 8px)' }),
+    left: '50%',
+    transform: 'translateX(-50%)',
+    backgroundColor: '#0f172a',
+    color: '#f8fafc',
+    fontSize: '11px',
+    fontWeight: '600',
+    padding: '5px 10px',
+    borderRadius: '6px',
+    whiteSpace: 'nowrap',
+    pointerEvents: 'none',
+    zIndex: 9999,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+    opacity: visible ? 1 : 0,
+    transition: 'opacity 0.15s ease',
+  };
+  return (
+    <div
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+    >
+      {children}
+      <span style={tipStyle}>{label}</span>
+    </div>
+  );
+};
 
 const SpecRow = ({ label, value, valueColor, isVerified }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -19,10 +51,99 @@ const SpecRow = ({ label, value, valueColor, isVerified }) => (
   </div>
 );
 
+/* ── Receipt Preview Component ────────────────────────────────── */
+const ReceiptPreview = ({ cart, successDetails, paymentMethod, isRefund }) => {
+  const tenderMethod = paymentMethod === 'CARD' ? 'Bank Card' : (paymentMethod === 'GIFT_CARD' ? 'Gift Card' : 'Cash');
+  const date = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+
+  return (
+    <div style={styles.receiptContainer}>
+      <div style={styles.receiptPaper}>
+        {/* Top ZigZag */}
+        <div style={styles.receiptZigZagTop} />
+
+        {/* Header */}
+        <div style={styles.receiptHeader}>
+          <h1 style={styles.receiptShopName}>LIQUOR POS</h1>
+          <p style={styles.receiptShopInfo}>Address: Lorem Ipsum, 23-10</p>
+          <p style={styles.receiptShopInfo}>Tel: 11223344</p>
+        </div>
+
+        <div style={styles.receiptAsterisks}>****************************</div>
+        <div style={styles.receiptTitle}>{isRefund ? 'REFUND RECEIPT' : 'CASH RECEIPT'}</div>
+        <div style={styles.receiptAsterisks}>****************************</div>
+
+        {/* Items Table */}
+        <div style={styles.receiptTable}>
+          <div style={styles.receiptTableHead}>
+            <span>Description</span>
+            <span>Price</span>
+          </div>
+          {cart.map((item, idx) => (
+            <div key={idx} style={styles.receiptItemRow}>
+              <span style={styles.receiptItemName}>{item.quantity}x {item.name || item.product_name}</span>
+              <span>${(item.quantity * item.price).toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={styles.receiptAsterisks}>****************************</div>
+
+        {/* Totals */}
+        <div style={styles.receiptSummary}>
+          <div style={styles.receiptTotalRow}>
+            <span>Total</span>
+            <span>${successDetails.total.toFixed(2)}</span>
+          </div>
+          <div style={styles.receiptSummaryRow}>
+            <span>{tenderMethod}</span>
+            <span>${successDetails.total.toFixed(2)}</span>
+          </div>
+          {!isRefund && (
+            <div style={styles.receiptSummaryRow}>
+              <span>Change</span>
+              <span>$0.00</span>
+            </div>
+          )}
+        </div>
+
+        <div style={styles.receiptAsterisks}>****************************</div>
+
+        {/* Card Specific Info */}
+        {paymentMethod === 'CARD' && (
+          <div style={{ width: '100%', fontSize: '12px' }}>
+            <div style={styles.receiptSummaryRow}>
+              <span>Bank card</span>
+              <span>... ... ... 4242</span>
+            </div>
+            <div style={styles.receiptSummaryRow}>
+              <span>Approval Code</span>
+              <span>#{successDetails.authCode || '123456'}</span>
+            </div>
+            <div style={styles.receiptAsterisks}>****************************</div>
+          </div>
+        )}
+
+        <div style={styles.receiptFooterText}>THANK YOU!</div>
+
+        {/* Barcode Placeholder */}
+        <div style={styles.receiptBarcodeContainer}>
+          <div style={styles.receiptBarcode} />
+          <div style={{ fontSize: '10px' }}>{successDetails.txnId}</div>
+        </div>
+
+        {/* Bottom ZigZag */}
+        <div style={styles.receiptZigZagBottom} />
+      </div>
+    </div>
+  );
+};
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("Whiskey");
+  const [activeTab, setActiveTab] = useState("All Products");
   const [cart, setCart] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [expandedTxnId, setExpandedTxnId] = useState(null);
 
   // State for logic
   const [products, setProducts] = useState([]);
@@ -38,6 +159,7 @@ export default function Home() {
   const [newCustName, setNewCustName] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustEmail, setNewCustEmail] = useState('');
+  const [newCustAge, setNewCustAge] = useState('');
 
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
   const [isPaymentViewOpen, setIsPaymentViewOpen] = useState(false);
@@ -92,6 +214,7 @@ export default function Home() {
   const [returnItems, setReturnItems] = useState([]);
   const [fetchedTransaction, setFetchedTransaction] = useState(null);
   const [isReturnLookupLoading, setIsReturnLookupLoading] = useState(false);
+  const [returnLookupTrigger, setReturnLookupTrigger] = useState(null);
   const [returnLookupError, setReturnLookupError] = useState(null);
   const [isRefundSuccessOpen, setIsRefundSuccessOpen] = useState(false);
   const [refundDetails, setRefundDetails] = useState({ id: '', amount: 0, method: '' });
@@ -104,6 +227,44 @@ export default function Home() {
         ? prev.filter(id => id !== productId)
         : [...prev, productId]
     );
+  };
+
+  const [hoveredNavTab, setHoveredNavTab] = useState(null);
+  const [isReceiptPreviewVisible, setIsReceiptPreviewVisible] = useState(false);
+  const [user, setUser] = useState(null);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const dropdownRef = React.useRef(null);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('liquor_pos_user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('liquor_pos_token');
+    localStorage.removeItem('liquor_pos_user');
+    window.location.reload();
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.charAt(0).toUpperCase();
   };
 
   const handleReturnQtyChange = (productId, delta) => {
@@ -146,6 +307,87 @@ export default function Home() {
   const [hasVerifiedAgeThisSession, setHasVerifiedAgeThisSession] = useState(false);
   const [pendingAgeVerifyProduct, setPendingAgeVerifyProduct] = useState(null);
   const [pendingProductToCart, setPendingProductToCart] = useState(null);
+  const [dobMonth, setDobMonth] = useState('');
+  const [dobDay, setDobDay] = useState('');
+  const [dobYear, setDobYear] = useState('');
+  const [ageVerifyError, setAgeVerifyError] = useState('');
+
+  const clearDobState = () => {
+    setDobMonth('');
+    setDobDay('');
+    setDobYear('');
+    setAgeVerifyError('');
+  };
+
+  const handleVerifyAge = async () => {
+    const month = parseInt(dobMonth, 10);
+    const day = parseInt(dobDay, 10);
+    const year = parseInt(dobYear, 10);
+    if (!month || !day || !year || isNaN(month) || isNaN(day) || isNaN(year)) {
+      setAgeVerifyError('Please enter a complete date of birth.');
+      return;
+    }
+    if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1900 || year > new Date().getFullYear()) {
+      setAgeVerifyError('Please enter a valid date of birth.');
+      return;
+    }
+    const dob = new Date(year, month - 1, day);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+    if (age < 21) {
+      setAgeVerifyError(`Customer is ${age} years old. Must be 21+ to purchase alcohol.`);
+      return;
+    }
+    // Save age to backend if we have a selected customer
+    if (selectedCustomer && selectedCustomer.id) {
+      try {
+        const token = localStorage.getItem('liquor_pos_token');
+        const res = await fetch(`${API_BASE_URL}/api/customers/${selectedCustomer.id}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ age })
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          // Update the selected customer state with the new age from DB
+          setSelectedCustomer(prev => ({ ...prev, age: updated.age, age_verified_at: updated.age_verified_at }));
+          // Also update the customer in the customers list
+          setCustomers(prev => prev.map(c => c.id === updated.id ? { ...c, age: updated.age, age_verified_at: updated.age_verified_at } : c));
+        }
+      } catch (err) {
+        console.error('Failed to save age to backend:', err);
+      }
+    }
+    setAgeVerifyError('');
+    setHasVerifiedAgeThisSession(true);
+    setIsAgeVerificationModalOpen(false);
+    clearDobState();
+    // IMPORTANT: Must call addProductDirectlyToCart (not processAgeVerificationAndAdd)
+    // because React state updates are batched — hasVerifiedAgeThisSession is still
+    // false in the current call stack, so calling processAgeVerificationAndAdd here
+    // would re-open the modal immediately.
+    if (pendingAgeVerifyProduct) {
+      addProductDirectlyToCart(pendingAgeVerifyProduct);
+      setPendingAgeVerifyProduct(null);
+    }
+  };
+
+  // Core function: adds product to cart directly, bypassing all age-gate checks.
+  // Used after age is verified to avoid stale-closure re-triggering the modal.
+  const addProductDirectlyToCart = (product) => {
+    if (product.stock <= 0) return;
+    openCustomerDisplayOnce();
+    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, stock: p.stock - 1 } : p));
+    setCart(prev => {
+      const existing = prev.find(item => item.id === product.id);
+      if (existing) {
+        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+      }
+      return [...prev, { ...product, quantity: 1 }];
+    });
+  };
 
   // Track the single customer display window — never re-open if already alive
   const customerDisplayWindowRef = React.useRef(null);
@@ -263,7 +505,8 @@ export default function Home() {
       items: cart.map(item => ({
         id: item.id,
         quantity: item.quantity,
-        price: item.price
+        price: item.price,
+        discount: item.discount || 0
       }))
     };
 
@@ -288,7 +531,8 @@ export default function Home() {
         setSuccessDetails({
           total: finalTotal,
           txnId: String(result.id || txnId || Math.floor(100000 + Math.random() * 900000)).padStart(12, '0'),
-          authCode: authCode || 'AUTH-' + Math.random().toString(36).substring(2, 8).toUpperCase()
+          authCode: authCode || 'AUTH-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          method: isCashPaymentOpen ? 'CASH' : (isGiftCardPaymentOpen ? 'GIFT_CARD' : (isSplitPaymentOpen ? 'SPLIT' : 'CARD'))
         });
         setIsPaymentSuccessOpen(true);
 
@@ -336,6 +580,7 @@ export default function Home() {
     setProductSearch('');
     setActiveNavTab('POS');
     setHasVerifiedAgeThisSession(false);
+    setIsReceiptPreviewVisible(false);
 
     // Clear Return state
     setReturnItems([]);
@@ -355,12 +600,44 @@ export default function Home() {
     localStorage.removeItem('liquorpos_cart_snapshot');
   };
 
+  // Handles customer X (deselect): restores stock, clears cart, notifies display
+  const handleDeselectCustomer = () => {
+    // Restore stock for all items currently in cart
+    if (cart.length > 0) {
+      setProducts(prev => prev.map(p => {
+        const cartItem = cart.find(c => c.id === p.id);
+        return cartItem ? { ...p, stock: p.stock + cartItem.quantity } : p;
+      }));
+      // Clear the cart
+      setCart([]);
+    }
+    setSelectedCustomer(null);
+    setHasVerifiedAgeThisSession(false);
+    setPendingAgeVerifyProduct(null);
+    setPendingProductToCart(null);
+    clearDobState();
+    // Notify customer display to clear
+    const emptyPayload = { cart: [], subtotal: 0, tax: 0, total: 0 };
+    localStorage.setItem('liquorpos_cart_snapshot', JSON.stringify(emptyPayload));
+    const channel = new BroadcastChannel('liquor-pos-sync');
+    channel.postMessage({ type: 'CART_UPDATE', data: emptyPayload });
+    channel.close();
+    customerDisplayWindowRef.current = null;
+  };
+
   const processAgeVerificationAndAdd = (product) => {
-    // Intercept if age verification required
+    // Intercept if age verification required and not yet verified this session
     if (product.ageVerified && !hasVerifiedAgeThisSession) {
-      setPendingAgeVerifyProduct(product);
-      setIsAgeVerificationModalOpen(true);
-      return;
+      // Check if customer already has a verified age >= 21 in the DB
+      if (selectedCustomer && selectedCustomer.age && selectedCustomer.age >= 21) {
+        // Auto-pass: age is already on file and they're of legal age
+        setHasVerifiedAgeThisSession(true);
+      } else {
+        // No stored age — show the modal to collect DOB
+        setPendingAgeVerifyProduct(product);
+        setIsAgeVerificationModalOpen(true);
+        return;
+      }
     }
 
     // If we have 0 stock left natively, ignore the click
@@ -421,7 +698,13 @@ export default function Home() {
 
   const selectCustomerForSale = (customer) => {
     if (selectedCustomer?.id !== customer.id) {
-      setHasVerifiedAgeThisSession(false);
+      // If this customer already has a verified age >= 21 in the DB,
+      // auto-approve — no need to ask again this session
+      if (customer.age && customer.age >= 21) {
+        setHasVerifiedAgeThisSession(true);
+      } else {
+        setHasVerifiedAgeThisSession(false);
+      }
       // New customer = new display window allowed
       customerDisplayWindowRef.current = null;
     }
@@ -448,7 +731,8 @@ export default function Home() {
         body: JSON.stringify({
           name: newCustName,
           phone: newCustPhone,
-          email: newCustEmail
+          email: newCustEmail,
+          age: newCustAge ? parseInt(newCustAge, 10) : null
         })
       });
 
@@ -461,6 +745,7 @@ export default function Home() {
         setNewCustName('');
         setNewCustPhone('');
         setNewCustEmail('');
+        setNewCustAge('');
         // Automatically select the new customer for the sale
         setHasVerifiedAgeThisSession(false);
         const initials = newCustomer.name ? newCustomer.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : '??';
@@ -508,9 +793,13 @@ export default function Home() {
   // Return aggregation
   const returnSubtotal = selectedReturnIds.reduce((acc, id) => {
     const item = returnItems.find(i => i.id === id);
-    return acc + (item.price * (returnQuantities[id] || 0));
+    const unitDiscount = item.unit_discount || 0;
+    const qty = returnQuantities[id] || 0;
+    return acc + ((item.price - unitDiscount) * qty);
   }, 0);
-  const returnTax = returnSubtotal * 0.0825;
+
+  const shouldRefundTax = ['Open Seals', 'Defective piece', 'Expired Product', 'Damaged Product'].includes(selectedReturnReason);
+  const returnTax = shouldRefundTax ? (returnSubtotal * 0.0825) : 0;
   const returnTotal = returnSubtotal + returnTax;
 
   const requiresManagerApproval = selectedReturnIds.some(id => {
@@ -522,16 +811,17 @@ export default function Home() {
   const handleProcessReturnFromHistory = (txnId) => {
     setReturnTransactionId(String(txnId));
     setActiveNavTab('Process Return');
-    fetchTransactionForReturn(String(txnId));
+    fetchTransactionForReturn(String(txnId), 'id');
   };
 
-  const fetchTransactionForReturn = async (idStr) => {
+  const fetchTransactionForReturn = async (idStr, trigger = null) => {
     const id = parseInt(idStr.trim(), 10);
     if (!id || isNaN(id)) {
       setReturnLookupError('Please enter a valid numeric Transaction ID.');
       return;
     }
     setIsReturnLookupLoading(true);
+    setReturnLookupTrigger(trigger);
     setReturnLookupError(null);
     setFetchedTransaction(null);
     setReturnItems([]);
@@ -559,6 +849,7 @@ export default function Home() {
             returnedQty: returned,
             purchasedQty: remaining, // Use remaining as the 'purchased' pool for current session
             price: item.unit_price,
+            unit_discount: item.unit_discount || 0,
             eligibility: remaining === 0 ? 'Fully Returned' : (item.return_policy || 'Returnable'),
             bg: '#f1f5f9'
           };
@@ -579,6 +870,7 @@ export default function Home() {
       setReturnLookupError('Network error: Could not reach the server.');
     } finally {
       setIsReturnLookupLoading(false);
+      setReturnLookupTrigger(null);
     }
   };
 
@@ -638,7 +930,15 @@ export default function Home() {
             id: String(fetchedTransaction.id).padStart(12, '0'),
             amount: returnTotal,
             method: selectedRefundMethod,
-            date: new Date().toLocaleDateString()
+            date: new Date().toLocaleDateString(),
+            items: itemsToReturn.map(it => {
+              const originalItem = returnItems.find(ri => ri.id === it.product_id);
+              return {
+                name: originalItem.name,
+                quantity: it.quantity,
+                price: it.unit_price
+              };
+            })
           });
           setIsRefundSuccessOpen(true);
           resetPOS(); // Clears return state
@@ -671,64 +971,150 @@ export default function Home() {
       {/* Top Header */}
       <header style={styles.topHeader}>
         <div style={styles.headerLeft}>
-          <div style={{ ...styles.logoBlueSquare, cursor: 'pointer', backgroundColor: '#0f172a', border: '1px solid #1e293b' }} onClick={() => setIsAddProductModalOpen(true)}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {/* Glass base and stem */}
-              <path d="M8 22h8" />
-              <path d="M12 11v11" />
-              <path d="M19 3l-7 8-7-8Z" />
-
-              {/* Lemon garnish */}
-              <circle cx="6" cy="6" r="3.5" stroke="#fde047" strokeWidth="2" fill="#fef08a" />
-
-              {/* Stir and Cherry */}
-              <line x1="15" y1="8" x2="20" y2="3" stroke="#e2e8f0" strokeWidth="1.5" />
-              <circle cx="20" cy="3" r="2" fill="#ef4444" stroke="none" />
-            </svg>
-          </div>
+          <Tooltip label="Add Product" position="bottom">
+            <div
+              style={{ ...styles.logoBlueSquare, cursor: 'pointer', backgroundColor: '#0f172a', border: '1px solid #1e293b', transition: 'background-color 0.15s ease, box-shadow 0.15s ease' }}
+              onClick={(e) => {
+                setIsAddProductModalOpen(true);
+                e.currentTarget.style.backgroundColor = '#0f172a';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1e293b'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.25)'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#0f172a'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 22h8" />
+                <path d="M12 11v11" />
+                <path d="M19 3l-7 8-7-8Z" />
+                <circle cx="6" cy="6" r="3.5" stroke="#fde047" strokeWidth="2" fill="#fef08a" />
+                <line x1="15" y1="8" x2="20" y2="3" stroke="#e2e8f0" strokeWidth="1.5" />
+                <circle cx="20" cy="3" r="2" fill="#ef4444" stroke="none" />
+              </svg>
+            </div>
+          </Tooltip>
           <h1 style={styles.headerTitle}>Liquor POS</h1>
-          <button style={styles.startNewSaleBtn}>+ Start New Sale</button>
+
         </div>
         <div style={styles.headerRight}>
-          <svg style={styles.iconButton} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-          <svg style={styles.iconButton} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <div style={styles.avatar}></div>
+          <Tooltip label="Notifications" position="bottom">
+            <div
+              style={{ padding: '6px', borderRadius: '8px', cursor: 'pointer', transition: 'background-color 0.15s ease', display: 'inline-flex' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <svg style={styles.iconButton} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            </div>
+          </Tooltip>
+          <Tooltip label="Settings" position="bottom">
+            <div
+              style={{ padding: '6px', borderRadius: '8px', cursor: 'pointer', transition: 'background-color 0.15s ease', display: 'inline-flex' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <svg style={styles.iconButton} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </div>
+          </Tooltip>
+          <Tooltip label="Profile" position="bottom">
+            <div style={{ position: 'relative' }} ref={dropdownRef}>
+              <div
+                style={{
+                  ...styles.avatar,
+                  background: 'linear-gradient(135deg, #0ea5e9, #6366f1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  border: '2px solid #ffffff',
+                  boxShadow: isProfileDropdownOpen ? '0 0 0 3px rgba(14,165,233,0.3)' : '0 1px 3px rgba(0,0,0,0.1)',
+                }}
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                onMouseEnter={e => {
+                  if (!isProfileDropdownOpen) e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={e => {
+                  if (!isProfileDropdownOpen) e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <span style={{ color: 'white', fontWeight: '800', fontSize: '14px', letterSpacing: '0.5px' }}>
+                  {getInitials(user?.username || user?.name)}
+                </span>
+              </div>
+
+              {isProfileDropdownOpen && (
+                <div style={styles.dropdownMenu}>
+                  <div style={styles.dropdownHeader}>
+                    <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '14px' }}>{user?.username || 'User'}</div>
+                    <div style={{ color: '#64748b', fontSize: '11px', marginTop: '2px' }}>{user?.role || 'Staff Member'}</div>
+                  </div>
+                  <div style={styles.dropdownDivider} />
+                  <div
+                    style={styles.dropdownItem}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <svg style={{ marginRight: '10px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Profile Settings
+                  </div>
+                  <div
+                    style={styles.dropdownItem}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <svg style={{ marginRight: '10px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    System Config
+                  </div>
+                  <div style={styles.dropdownDivider} />
+                  <div
+                    style={{ ...styles.dropdownItem, color: '#ef4444' }}
+                    onClick={handleLogout}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <svg style={{ marginRight: '10px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Logout
+                  </div>
+                </div>
+              )}
+            </div>
+          </Tooltip>
         </div>
       </header>
 
       {/* Sub-Header Tabs */}
       <div style={styles.subHeader}>
-        <div
-          style={{ ...styles.subHeaderTab, ...(activeNavTab === 'POS' ? styles.subHeaderTabActive : {}) }}
-          onClick={() => setActiveNavTab('POS')}
-        >
-          <svg style={{ marginRight: '8px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={activeNavTab === 'POS' ? '#0ea5e9' : 'currentColor'} strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-          POS
-        </div>
-        <div style={styles.subHeaderTab}>
-          <svg style={{ marginRight: '8px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-          Cash Drawer
-        </div>
-        <div
-          style={{ ...styles.subHeaderTab, ...(activeNavTab === 'Process Return' ? styles.subHeaderTabActive : {}) }}
-          onClick={() => setActiveNavTab('Process Return')}
-        >
-          <svg style={{ marginRight: '8px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={activeNavTab === 'Process Return' ? '#0ea5e9' : 'currentColor'} strokeWidth="2"><path d="M21 2v6h-6"></path><path d="M21 13a9 9 0 1 1-3-7.7L21 8"></path></svg>
-          Process Return
-        </div>
-        <div
-          style={{ ...styles.subHeaderTab, ...(activeNavTab === 'Lookup Transaction' ? styles.subHeaderTabActive : {}) }}
-          onClick={() => setActiveNavTab('Lookup Transaction')}
-        >
-          <svg style={{ marginRight: '8px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={activeNavTab === 'Lookup Transaction' ? '#0ea5e9' : 'currentColor'} strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          Lookup Transaction
-        </div>
+        {[{id:'POS',label:'POS',icon:<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>},{id:'Cash Drawer',label:'Cash Drawer',icon:<><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></>},{id:'Process Return',label:'Process Return',icon:<><path d="M21 2v6h-6"/><path d="M21 13a9 9 0 1 1-3-7.7L21 8"/></>},{id:'Lookup Transaction',label:'Lookup Transaction',icon:<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>}].map(tab => {
+          const isActive = activeNavTab === tab.id;
+          const isHovered = hoveredNavTab === tab.id;
+          return (
+            <div
+              key={tab.id}
+              style={{
+                ...styles.subHeaderTab,
+                ...(isActive ? styles.subHeaderTabActive : {}),
+                backgroundColor: isHovered ? '#f1f5f9' : 'transparent',
+                color: isHovered ? '#0f172a' : (isActive ? '#0ea5e9' : '#64748b'),
+                borderRadius: '8px',
+                padding: '0 10px',
+                transition: 'background-color 0.15s ease, color 0.15s ease',
+              }}
+              onClick={() => tab.id !== 'Cash Drawer' && setActiveNavTab(tab.id)}
+              onMouseEnter={() => setHoveredNavTab(tab.id)}
+              onMouseLeave={() => setHoveredNavTab(null)}
+            >
+              <svg style={{ marginRight: '8px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isActive ? '#0ea5e9' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {tab.icon}
+              </svg>
+              {tab.label}
+            </div>
+          );
+        })}
       </div>
 
       <div style={styles.mainLayout}>
@@ -758,9 +1144,13 @@ export default function Home() {
                     <div key={item.id} style={styles.paymentSidebarItemCard}>
                       <div style={styles.paymentSidebarItemLeft}>
                         <div style={styles.paymentSidebarItemIcon}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="7" y="10" width="10" height="12" rx="2" /><path d="M10 2v8M14 2v8" /><line x1="10" y1="2" x2="14" y2="2" />
-                          </svg>
+                          {item.image_url ? (
+                            <img src={item.image_url} alt={item.fullName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="7" y="10" width="10" height="12" rx="2" /><path d="M10 2v8M14 2v8" /><line x1="10" y1="2" x2="14" y2="2" />
+                            </svg>
+                          )}
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={styles.paymentSidebarItemName}>{item.fullName}</div>
@@ -775,9 +1165,13 @@ export default function Home() {
                     <div key={item.id} style={styles.orderItemCard}>
                       <div style={styles.orderItemTop}>
                         <div style={styles.orderItemIconContainer}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="7" y="10" width="10" height="12" rx="2" /><path d="M10 2v8M14 2v8" /><line x1="10" y1="2" x2="14" y2="2" />
-                          </svg>
+                          {item.image_url ? (
+                            <img src={item.image_url} alt={item.fullName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="7" y="10" width="10" height="12" rx="2" /><path d="M10 2v8M14 2v8" /><line x1="10" y1="2" x2="14" y2="2" />
+                            </svg>
+                          )}
                         </div>
                         <div style={styles.orderItemInfo}>
                           <div style={styles.orderItemName}>{item.fullName}</div>
@@ -988,7 +1382,15 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <button style={styles.returnManagerBtn} onClick={() => setIsReturnConfirmModalOpen(true)}>
+                    <button
+                      style={{
+                        ...styles.returnManagerBtn,
+                        opacity: selectedReturnIds.length === 0 ? 0.5 : 1,
+                        cursor: selectedReturnIds.length === 0 ? 'not-allowed' : 'pointer'
+                      }}
+                      onClick={() => selectedReturnIds.length > 0 && setIsReturnConfirmModalOpen(true)}
+                      disabled={selectedReturnIds.length === 0}
+                    >
                       {requiresManagerApproval && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>}
                       {requiresManagerApproval ? 'Manager Approval Required' : 'Process Refund'}
                     </button>
@@ -1017,14 +1419,14 @@ export default function Home() {
                     style={styles.processReturnInput}
                     value={returnReceiptBarcode}
                     onChange={e => setReturnReceiptBarcode(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && fetchTransactionForReturn(returnReceiptBarcode)}
+                    onKeyDown={(e) => e.key === 'Enter' && fetchTransactionForReturn(returnReceiptBarcode, 'barcode')}
                   />
                   <button
-                    style={{ ...styles.processReturnFindBtn, opacity: isReturnLookupLoading ? 0.7 : 1 }}
-                    onClick={() => fetchTransactionForReturn(returnReceiptBarcode)}
+                    style={{ ...styles.processReturnFindBtn, opacity: isReturnLookupLoading && returnLookupTrigger === 'barcode' ? 0.7 : 1 }}
+                    onClick={() => fetchTransactionForReturn(returnReceiptBarcode, 'barcode')}
                     disabled={isReturnLookupLoading}
                   >
-                    {isReturnLookupLoading ? 'Searching...' : 'Find Receipt'}
+                    {isReturnLookupLoading && returnLookupTrigger === 'barcode' ? 'Searching...' : 'Find Receipt'}
                   </button>
                 </div>
 
@@ -1046,14 +1448,14 @@ export default function Home() {
                     style={styles.processReturnInput}
                     value={returnTransactionId}
                     onChange={e => setReturnTransactionId(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && fetchTransactionForReturn(returnTransactionId)}
+                    onKeyDown={(e) => e.key === 'Enter' && fetchTransactionForReturn(returnTransactionId, 'id')}
                   />
                   <button
-                    style={{ ...styles.processReturnFindBtn, opacity: isReturnLookupLoading ? 0.7 : 1 }}
-                    onClick={() => fetchTransactionForReturn(returnTransactionId)}
+                    style={{ ...styles.processReturnFindBtn, opacity: isReturnLookupLoading && returnLookupTrigger === 'id' ? 0.7 : 1 }}
+                    onClick={() => fetchTransactionForReturn(returnTransactionId, 'id')}
                     disabled={isReturnLookupLoading}
                   >
-                    {isReturnLookupLoading ? 'Searching...' : 'Find Receipt'}
+                    {isReturnLookupLoading && returnLookupTrigger === 'id' ? 'Searching...' : 'Find Receipt'}
                   </button>
                 </div>
 
@@ -1106,15 +1508,17 @@ export default function Home() {
                       <th style={styles.historyTh}>Date & Time</th>
                       <th style={styles.historyTh}>Customer</th>
                       <th style={styles.historyTh}>Method</th>
-                      <th style={styles.historyTh}>Amount</th>
+                      <th style={styles.historyTh}>Total</th>
+                      <th style={styles.historyTh}>Returns</th>
+                      <th style={styles.historyTh}>Net</th>
                       <th style={styles.historyTh}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {isLoadingPastTransactions ? (
-                      <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Loading transactions...</td></tr>
+                      <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Loading transactions...</td></tr>
                     ) : pastTransactions.length === 0 ? (
-                      <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No transactions found.</td></tr>
+                      <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No transactions found.</td></tr>
                     ) : (
                       pastTransactions
                         .filter(txn => {
@@ -1123,40 +1527,131 @@ export default function Home() {
                           const customerName = (txn.customer_name || '').toLowerCase();
                           return stringId.includes(query) || customerName.includes(query);
                         })
-                        .map(txn => (
-                          <tr key={txn.id} style={styles.historyRow}>
-                            <td style={styles.historyTd}>
-                              <span style={styles.historyIdBadge}>{String(txn.id).padStart(12, '0')}</span>
-                            </td>
-                            <td style={styles.historyTd}>
-                              {new Date(txn.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                            </td>
-                            <td style={styles.historyTd}>
-                              <div style={styles.historyCustomerCell}>
-                                <div style={{ ...styles.avatarSmall, backgroundColor: txn.customer_id ? '#eff6ff' : '#f8fafc', color: txn.customer_id ? '#3b82f6' : '#94a3b8' }}>
-                                  {txn.customer_name ? txn.customer_name.charAt(0) : 'W'}
-                                </div>
-                                <span>{txn.customer_name || "Walk-in"}</span>
-                              </div>
-                            </td>
-                            <td style={styles.historyTd}>
-                              <span style={{ ...styles.paymentBadge, backgroundColor: txn.payment_method === 'CASH' ? '#f0fdf4' : txn.payment_method === 'CARD' ? '#eff6ff' : '#fdf4ff', color: txn.payment_method === 'CASH' ? '#16a34a' : txn.payment_method === 'CARD' ? '#2563eb' : '#a21caf' }}>
-                                {txn.payment_method}
-                              </span>
-                            </td>
-                            <td style={{ ...styles.historyTd, fontWeight: '700', color: '#0f172a' }}>
-                              ${txn.total.toFixed(2)}
-                            </td>
-                            <td style={styles.historyTd}>
-                              <button
-                                style={{ ...styles.historyActionBtn, backgroundColor: '#0ea5e9', color: 'white' }}
-                                onClick={() => handleProcessReturnFromHistory(txn.id)}
+                        .map(txn => {
+                          const totalReturns = (txn.returns || []).reduce((acc, r) => acc + r.total, 0);
+                          const netTotal = txn.total - totalReturns;
+
+                          // Check if all items are returned by comparing quantities
+                          const originalItemQty = (txn.items || []).reduce((acc, i) => acc + i.quantity, 0);
+                          const returnedItemQty = (txn.returns || []).reduce((acc, r) =>
+                            acc + (r.items || []).reduce((sum, ri) => sum + ri.quantity, 0), 0
+                          );
+                          const isFullyReturned = returnedItemQty >= originalItemQty;
+
+                          return (
+                            <React.Fragment key={txn.id}>
+                              <tr
+                                style={{
+                                  ...styles.historyRow,
+                                  cursor: 'pointer',
+                                  backgroundColor: expandedTxnId === txn.id ? '#f8fafc' : 'transparent'
+                                }}
+                                onClick={(e) => {
+                                  if (e.target.tagName !== 'BUTTON') {
+                                    setExpandedTxnId(expandedTxnId === txn.id ? null : txn.id);
+                                  }
+                                }}
                               >
-                                Process Return
-                              </button>
-                            </td>
-                          </tr>
-                        ))
+                                <td style={styles.historyTd}>
+                                  <span style={styles.historyIdBadge}>{String(txn.id).padStart(12, '0')}</span>
+                                </td>
+                                <td style={styles.historyTd}>
+                                  {new Date(txn.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                </td>
+                                <td style={styles.historyTd}>
+                                  <div style={styles.historyCustomerCell}>
+                                    <div style={{ ...styles.avatarSmall, backgroundColor: txn.customer_id ? '#eff6ff' : '#f8fafc', color: txn.customer_id ? '#3b82f6' : '#94a3b8' }}>
+                                      {txn.customer_name ? txn.customer_name.charAt(0) : 'W'}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                      <span style={{ fontWeight: '600' }}>{txn.customer_name || "Walk-in"}</span>
+                                      {txn.customer_age && (
+                                        <span style={{ fontSize: '11px', color: '#64748b' }}>Age: {txn.customer_age}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td style={styles.historyTd}>
+                                  <span style={{ ...styles.paymentBadge, backgroundColor: txn.payment_method === 'CASH' ? '#f0fdf4' : txn.payment_method === 'CARD' ? '#eff6ff' : '#fdf4ff', color: txn.payment_method === 'CASH' ? '#16a34a' : txn.payment_method === 'CARD' ? '#2563eb' : '#a21caf' }}>
+                                    {txn.payment_method}
+                                  </span>
+                                </td>
+                                <td style={{ ...styles.historyTd, fontWeight: '600', color: '#64748b' }}>
+                                  ${txn.total.toFixed(2)}
+                                </td>
+                                <td style={{ ...styles.historyTd, fontWeight: '600', color: totalReturns > 0 ? '#ef4444' : '#cbd5e1' }}>
+                                  {totalReturns > 0 ? `-$${totalReturns.toFixed(2)}` : '—'}
+                                </td>
+                                <td style={{ ...styles.historyTd, fontWeight: '800', color: '#0f172a' }}>
+                                  ${netTotal.toFixed(2)}
+                                </td>
+                                <td style={styles.historyTd}>
+                                  <button
+                                    style={{
+                                      ...styles.historyActionBtn,
+                                      backgroundColor: isFullyReturned ? '#f1f5f9' : '#0ea5e9',
+                                      color: isFullyReturned ? '#94a3b8' : 'white',
+                                      cursor: isFullyReturned ? 'not-allowed' : 'pointer'
+                                    }}
+                                    onClick={() => !isFullyReturned && handleProcessReturnFromHistory(txn.id)}
+                                    disabled={isFullyReturned}
+                                  >
+                                    {isFullyReturned ? 'Fully Returned' : 'Process Return'}
+                                  </button>
+                                </td>
+                              </tr>
+                              {expandedTxnId === txn.id && (
+                                <tr>
+                                  <td colSpan="8" style={{ padding: 0, backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                    <div style={{ padding: '24px', display: 'flex', gap: '32px' }}>
+                                      <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#0f172a', display: 'flex', justifyContent: 'space-between' }}>
+                                          <span>Receipt Details</span>
+                                          <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 'normal' }}>{new Date(txn.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                        </h3>
+                                        <div style={{ borderBottom: '1px dashed #e2e8f0', paddingBottom: '12px', marginBottom: '12px' }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase' }}>
+                                            <span>Item</span>
+                                            <span>Total</span>
+                                          </div>
+                                          {(txn.items || []).map(item => (
+                                            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#334155' }}>
+                                              <span>{item.quantity}x {item.product_name}</span>
+                                              <span>${(item.quantity * item.unit_price).toFixed(2)}</span>
+                                            </div>
+                                          ))}
+                                          {totalReturns > 0 && (
+                                            <div style={{ marginTop: '16px' }}>
+                                              <div style={{ fontSize: '12px', fontWeight: '600', color: '#ef4444', textTransform: 'uppercase', marginBottom: '8px' }}>Returned Items</div>
+                                              {(txn.returns || []).flatMap(r => r.items || []).map((ritem, idx) => (
+                                                <div key={`ret-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#ef4444' }}>
+                                                  <span>{ritem.quantity}x {ritem.product_name}</span>
+                                                  <span>-${(ritem.quantity * ritem.unit_price).toFixed(2)}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                                          <span>Subtotal</span>
+                                          <span>${(txn.subtotal).toFixed(2)}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#64748b', marginBottom: '12px' }}>
+                                          <span>Tax</span>
+                                          <span>${(txn.tax).toFixed(2)}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
+                                          <span>Net Total</span>
+                                          <span>${netTotal.toFixed(2)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })
                     )}
                   </tbody>
                 </table>
@@ -1171,33 +1666,78 @@ export default function Home() {
                   </svg>
                   <input type="text" placeholder="Search product by name or SKU..." style={styles.searchInput} value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
                 </div>
-                <button style={styles.barcodeScannerBtn} onClick={() => window.open(CUSTOMER_DISPLAY_URL, 'liquorPosCustomerDisplay')}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="7" height="7" rx="1" />
-                    <rect x="14" y="3" width="7" height="7" rx="1" />
-                    <rect x="3" y="14" width="7" height="7" rx="1" />
-                    <rect x="14" y="14" width="3" height="3" rx="0.5" />
-                    <rect x="18" y="18" width="3" height="3" rx="0.5" />
-                    <rect x="14" y="18" width="2" height="2" />
-                    <rect x="18" y="14" width="2" height="2" />
-                  </svg>
-                </button>
-                <button style={{ ...styles.selectCustomerBtn, backgroundColor: selectedCustomer ? '#f0f9ff' : '#0ea5e9', color: selectedCustomer ? '#0ea5e9' : 'white', border: selectedCustomer ? '1px solid #0ea5e9' : 'none' }} onClick={() => setIsCustomerModalOpen(true)}>
+                <Tooltip label="Open Customer Display" position="bottom">
+                  <button
+                    style={styles.barcodeScannerBtn}
+                    onClick={() => window.open(CUSTOMER_DISPLAY_URL, 'liquorPosCustomerDisplay')}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.backgroundColor = '#f8fafc';
+                      e.currentTarget.style.borderColor = '#cbd5e1';
+                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.backgroundColor = '#ffffff';
+                      e.currentTarget.style.borderColor = '#e2e8f0';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="7" height="7" rx="1" />
+                      <rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" />
+                      <rect x="14" y="14" width="3" height="3" rx="0.5" />
+                      <rect x="18" y="18" width="3" height="3" rx="0.5" />
+                      <rect x="14" y="18" width="2" height="2" />
+                      <rect x="18" y="14" width="2" height="2" />
+                    </svg>
+                  </button>
+                </Tooltip>
+                <button
+                  style={{
+                    ...styles.selectCustomerBtn,
+                    backgroundColor: selectedCustomer ? '#f0f9ff' : '#0ea5e9',
+                    color: selectedCustomer ? '#0ea5e9' : 'white',
+                    border: selectedCustomer ? '1px solid #0ea5e9' : 'none',
+                    transition: 'background-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease',
+                  }}
+                  onClick={(e) => {
+                    setIsCustomerModalOpen(true);
+                    e.currentTarget.style.backgroundColor = selectedCustomer ? '#f0f9ff' : '#0ea5e9';
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.filter = 'none';
+                  }}
+                  onMouseEnter={e => {
+                    if (selectedCustomer) {
+                      e.currentTarget.style.backgroundColor = '#e0f2fe';
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.15)';
+                    } else {
+                      e.currentTarget.style.filter = 'brightness(1.1)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(14,165,233,0.35)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = selectedCustomer ? '#f0f9ff' : '#0ea5e9';
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.filter = 'none';
+                  }}
+                >
                   <svg style={{ marginRight: '8px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
                   {selectedCustomer ? selectedCustomer.name : 'Select Customer'}
                   {selectedCustomer && (
                     <div
-                      onClick={(e) => { e.stopPropagation(); setSelectedCustomer(null); }}
-                      style={{ marginLeft: '8px', padding: '2px', cursor: 'pointer' }}
+                      onClick={(e) => { e.stopPropagation(); handleDeselectCustomer(); }}
+                      style={{ marginLeft: '8px', padding: '4px', borderRadius: '50%', cursor: 'pointer', transition: 'background-color 0.15s ease', display: 'inline-flex' }}
+                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(14,165,233,0.2)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </div>
                   )}
                 </button>
               </div>
 
               <div style={styles.categoryTabs}>
-                {['Whiskey', 'Vodka', 'Wine', 'Beer', 'All Products'].map((tab) => (
+                {['All Products', 'Whiskey', 'Vodka', 'Wine', 'Beer'].map((tab) => (
                   <div key={tab} style={activeTab === tab ? { ...styles.tab, ...styles.activeTab } : styles.tab} onClick={() => { setActiveTab(tab); setProductSearch(''); }}>
                     {tab}
                   </div>
@@ -1206,17 +1746,35 @@ export default function Home() {
 
               <div style={styles.productGrid}>
                 {displayedProducts.length === 0 ? (
-                  <div style={{ color: '#94a3b8', fontSize: '14px', fontStyle: 'italic', padding: '24px 0' }}>No products found...</div>
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', minHeight: '300px', gap: '12px' }}>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      {productSearch.trim() !== '' ? (
+                        <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="8" y1="11" x2="14" y2="11" /></>
+                      ) : (
+                        <><rect x="7" y="10" width="10" height="12" rx="2" /><path d="M10 2v8M14 2v8" /><line x1="10" y1="2" x2="14" y2="2" /><line x1="5" y1="22" x2="19" y2="22" strokeDasharray="2 2" /></>
+                      )}
+                    </svg>
+                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#64748b', letterSpacing: '-0.3px' }}>
+                      {productSearch.trim() !== '' ? 'Product not found' : 'Product not available'}
+                    </span>
+                    <span style={{ fontSize: '13px', fontWeight: '500', color: '#94a3b8' }}>
+                      {productSearch.trim() !== '' ? `No results for "${productSearch}"` : 'No items in this category yet'}
+                    </span>
+                  </div>
                 ) : (
                   displayedProducts.map((prod) => (
                     <div key={prod.id} style={styles.productCard} onClick={() => addToCart(prod)}>
-                      <div style={{ ...styles.productImageContainer, backgroundColor: prod.bg }}>
-                        <svg width="32" height="72" viewBox="0 0 24 64" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="5" y="22" width="14" height="40" rx="3" fill="#ffffff" />
-                          <path d="M9 10v12 M15 10v12" />
-                          <rect x="8" y="2" width="8" height="8" rx="2" fill="#94a3b8" />
-                          <path d="M5 36 h14 M5 50 h14" strokeWidth="1" />
-                        </svg>
+                      <div style={{ ...styles.productImageContainer, backgroundColor: prod.image_url ? '#ffffff' : prod.bg }}>
+                        {prod.image_url ? (
+                          <img src={prod.image_url} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        ) : (
+                          <svg width="32" height="72" viewBox="0 0 24 64" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="5" y="22" width="14" height="40" rx="3" fill="#ffffff" />
+                            <path d="M9 10v12 M15 10v12" />
+                            <rect x="8" y="2" width="8" height="8" rx="2" fill="#94a3b8" />
+                            <path d="M5 36 h14 M5 50 h14" strokeWidth="1" />
+                          </svg>
+                        )}
                       </div>
                       <div style={styles.productInfo}>
                         <div style={styles.productName}>{prod.name}</div>
@@ -1897,9 +2455,11 @@ export default function Home() {
 
             <div style={styles.reasonList}>
               {[
+                'Open Seals',
+                'Defective piece',
                 'Damaged Product',
-                'Wrong Item',
                 'Expired Product',
+                'Wrong Item',
                 'Customer Dissatisfied',
                 'Other (Specify)'
               ].map(reason => {
@@ -2081,21 +2641,16 @@ export default function Home() {
             <h2 style={{ ...styles.successTitle, color: '#0f172a' }}>Refund Successful</h2>
             <p style={styles.successSubtitle}>The refund has been processed and stock reversed.</p>
 
-            <div style={{ ...styles.successAmountSection, backgroundColor: '#f8fafc', borderRadius: '12px', padding: '24px' }}>
-              <span style={{ ...styles.successAmountLabel, color: '#64748b', fontSize: '14px', marginBottom: '8px' }}>Total Refunded Amount</span>
-              <span style={{ ...styles.successAmountValue, color: '#0ea5e9', fontSize: '32px' }}>${refundDetails.amount.toFixed(2)}</span>
-            </div>
-
-            <div style={{ ...styles.successFieldsRow, marginTop: '24px', borderTop: '1px dashed #e2e8f0', paddingTop: '24px' }}>
-              <div style={styles.successFieldItem}>
-                <label style={styles.successFieldLabel}>Refund Method</label>
-                <div style={styles.successFieldValue}>{refundDetails.method}</div>
-              </div>
-              <div style={styles.successFieldItem}>
-                <label style={styles.successFieldLabel}>Original TXN ID</label>
-                <div style={styles.successFieldValue}>{refundDetails.id}</div>
-              </div>
-            </div>
+            <ReceiptPreview 
+              cart={refundDetails.items || []} 
+              successDetails={{
+                total: refundDetails.amount,
+                txnId: refundDetails.id,
+                authCode: 'REFUND'
+              }} 
+              paymentMethod={refundDetails.method}
+              isRefund={true}
+            />
 
             <div style={{ ...styles.successBtnRow, marginTop: '32px' }}>
               <button style={{ ...styles.successBtnNewSale, backgroundColor: '#0ea5e9' }} onClick={() => { setIsRefundSuccessOpen(false); resetPOS(); }}>
@@ -2115,38 +2670,64 @@ export default function Home() {
       {isPaymentSuccessOpen && (
         <div style={styles.paymentViewContainer}>
           <div style={styles.successCard}>
-            <div style={styles.successIconCircle}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            </div>
-            <h2 style={styles.successTitle}>Payment Successful</h2>
-            <p style={styles.successSubtitle}>The transaction has been completed.</p>
+            {!isReceiptPreviewVisible ? (
+              <>
+                <div style={styles.successIconCircle}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                </div>
+                <h2 style={styles.successTitle}>Payment Successful</h2>
+                <p style={styles.successSubtitle}>The transaction has been completed.</p>
 
-            <div style={styles.successAmountSection}>
-              <span style={styles.successAmountLabel}>Total Amount Paid</span>
-              <span style={styles.successAmountValue}>${successDetails.total.toFixed(2)}</span>
-            </div>
+                <div style={styles.successBtnRow}>
+                  <button style={styles.successBtnNewSale} onClick={() => { setIsPaymentSuccessOpen(false); resetPOS(); }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    New Sale
+                  </button>
+                  <button style={styles.successBtnPrint} onClick={() => setIsReceiptPreviewVisible(true)}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    Print Receipt
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 style={{ ...styles.successTitle, fontSize: '20px', marginBottom: '8px' }}>Receipt Preview</h2>
+                <p style={{ ...styles.successSubtitle, marginBottom: '0px' }}>Verify the details before printing.</p>
+                
+                <ReceiptPreview 
+                  cart={cart} 
+                  successDetails={successDetails} 
+                  paymentMethod={successDetails.method} 
+                />
 
-            <div style={styles.successFieldsRow}>
-              <div style={styles.successFieldItem}>
-                <label style={styles.successFieldLabel}>Transaction ID</label>
-                <div style={styles.successFieldValue}>{successDetails.txnId}</div>
-              </div>
-              <div style={styles.successFieldItem}>
-                <label style={styles.successFieldLabel}>Authorization Code</label>
-                <div style={styles.successFieldValue}>{successDetails.authCode}</div>
-              </div>
-            </div>
-
-            <div style={styles.successBtnRow}>
-              <button style={styles.successBtnNewSale} onClick={() => { setIsPaymentSuccessOpen(false); resetPOS(); }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                New Sale
-              </button>
-              <button style={styles.successBtnPrint} onClick={() => console.log("Printing receipt...")}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                Print Receipt
-              </button>
-            </div>
+                <div style={{ ...styles.successBtnRow, marginTop: '16px' }}>
+                  <button 
+                    style={{ ...styles.successBtnPrint, backgroundColor: '#f1f5f9', flex: 1 }} 
+                    onClick={() => setIsReceiptPreviewVisible(false)}
+                  >
+                    Back
+                  </button>
+                  <button 
+                    style={{ ...styles.successBtnNewSale, flex: 2 }} 
+                    onClick={() => {
+                       console.log("Printing...");
+                       // In a real app, this might trigger window.print() 
+                       // or call a bridge to a thermal printer
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    Print
+                  </button>
+                </div>
+                
+                <button 
+                  style={{ ...styles.dropdownItem, color: '#64748b', justifyContent: 'center', marginTop: '12px', width: '100%' }}
+                  onClick={() => { setIsPaymentSuccessOpen(false); resetPOS(); }}
+                >
+                  Skip & New Sale
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -2188,7 +2769,14 @@ export default function Home() {
                         </div>
                         <div style={styles.customerInfoBlock}>
                           <div style={styles.customerName}>{customer.name}</div>
-                          <div style={styles.customerPhone}>{customer.phone}</div>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <div style={styles.customerPhone}>{customer.phone}</div>
+                            {customer.age && (
+                              <span style={{ fontSize: '11px', backgroundColor: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: '4px', fontWeight: '600' }}>
+                                Age: {customer.age}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <button
@@ -2277,6 +2865,21 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Age */}
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>Age</label>
+                <div style={styles.formInputWrapper}>
+                  <svg style={styles.formInputIcon} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" /></svg>
+                  <input
+                    type="number"
+                    placeholder="e.g. 25"
+                    style={styles.formInput}
+                    value={newCustAge}
+                    onChange={(e) => setNewCustAge(e.target.value)}
+                  />
+                </div>
+              </div>
+
             </div>
 
             <div style={styles.modalAddFooter}>
@@ -2308,10 +2911,36 @@ export default function Home() {
             <div style={styles.ageModalFormGroup}>
               <label style={styles.ageFormLabel}>Date of Birth</label>
               <div style={styles.dobContainer}>
-                <input type="text" placeholder="MM" style={styles.dobInput} maxLength="2" />
-                <input type="text" placeholder="DD" style={styles.dobInput} maxLength="2" />
-                <input type="text" placeholder="YYYY" style={styles.dobInputLarge} maxLength="4" />
+                <input
+                  type="text"
+                  placeholder="MM"
+                  style={styles.dobInput}
+                  maxLength="2"
+                  value={dobMonth}
+                  onChange={(e) => { setDobMonth(e.target.value.replace(/\D/g, '')); setAgeVerifyError(''); }}
+                />
+                <input
+                  type="text"
+                  placeholder="DD"
+                  style={styles.dobInput}
+                  maxLength="2"
+                  value={dobDay}
+                  onChange={(e) => { setDobDay(e.target.value.replace(/\D/g, '')); setAgeVerifyError(''); }}
+                />
+                <input
+                  type="text"
+                  placeholder="YYYY"
+                  style={styles.dobInputLarge}
+                  maxLength="4"
+                  value={dobYear}
+                  onChange={(e) => { setDobYear(e.target.value.replace(/\D/g, '')); setAgeVerifyError(''); }}
+                />
               </div>
+              {ageVerifyError && (
+                <div style={{ marginTop: '10px', padding: '10px 14px', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', color: '#dc2626', fontSize: '13px', fontWeight: '500' }}>
+                  {ageVerifyError}
+                </div>
+              )}
             </div>
 
             <div style={styles.scanActionRow}>
@@ -2326,15 +2955,8 @@ export default function Home() {
             </div>
 
             <div style={styles.ageModalFooter}>
-              <button style={styles.ageBtnCancel} onClick={() => { setIsAgeVerificationModalOpen(false); setPendingAgeVerifyProduct(null); }}>Cancel</button>
-              <button style={styles.ageBtnVerify} onClick={() => {
-                setHasVerifiedAgeThisSession(true);
-                setIsAgeVerificationModalOpen(false);
-                if (pendingAgeVerifyProduct) {
-                  processAgeVerificationAndAdd(pendingAgeVerifyProduct);
-                  setPendingAgeVerifyProduct(null);
-                }
-              }}>Verify Customer</button>
+              <button style={styles.ageBtnCancel} onClick={() => { setIsAgeVerificationModalOpen(false); setPendingAgeVerifyProduct(null); clearDobState(); }}>Cancel</button>
+              <button style={styles.ageBtnVerify} onClick={handleVerifyAge}>Verify Customer</button>
             </div>
           </div>
         </div>
@@ -2382,17 +3004,7 @@ const styles = {
     margin: 0,
     letterSpacing: '-0.5px'
   },
-  startNewSaleBtn: {
-    marginLeft: '8px',
-    padding: '8px 16px',
-    backgroundColor: '#0ea5e9',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '13px',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
+
   headerRight: {
     display: 'flex',
     alignItems: 'center',
@@ -2403,10 +3015,40 @@ const styles = {
     cursor: 'pointer',
   },
   avatar: {
-    width: '32px',
-    height: '32px',
-    backgroundColor: '#fde047',
-    borderRadius: '50%',
+    width: '38px',
+    height: '38px',
+    borderRadius: '12px',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 'calc(100% + 12px)',
+    right: 0,
+    width: '240px',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0,0,0,0.05)',
+    zIndex: 1000,
+    padding: '8px',
+    animation: 'dropdownFadeIn 0.2s ease-out',
+  },
+  dropdownHeader: {
+    padding: '12px 16px',
+  },
+  dropdownItem: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '10px 16px',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#475569',
+    cursor: 'pointer',
+    borderRadius: '8px',
+    transition: 'all 0.15s ease',
+  },
+  dropdownDivider: {
+    height: '1px',
+    backgroundColor: '#f1f5f9',
+    margin: '8px 0',
   },
   subHeader: {
     height: '48px',
@@ -2414,7 +3056,7 @@ const styles = {
     alignItems: 'center',
     padding: '0 24px',
     borderBottom: '1px solid #e2e8f0',
-    gap: '32px',
+    gap: '4px',
   },
   subHeaderTab: {
     display: 'flex',
@@ -4050,14 +4692,16 @@ const styles = {
   successCard: {
     backgroundColor: '#ffffff',
     borderRadius: '24px',
-    width: '640px',
+    width: '450px',
     maxWidth: '90vw',
-    padding: '48px',
-    boxShadow: '0 25px 70px rgba(0,0,0,0.15)',
+    padding: '32px',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.1)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     textAlign: 'center',
+    maxHeight: '85vh',
+    overflowY: 'auto',
   },
   successIconCircle: {
     width: '72px',
@@ -4770,5 +5414,137 @@ const styles = {
     color: '#64748b',
     cursor: 'pointer',
     transition: 'all 0.2s',
+  },
+
+  /* ── Receipt Preview Styles ────────────────────────────────── */
+  receiptContainer: {
+    margin: '24px 0',
+    display: 'flex',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  receiptPaper: {
+    width: '300px',
+    backgroundColor: '#ffffff',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+    padding: '36px 20px',
+    position: 'relative',
+    fontFamily: '"Courier New", Courier, monospace',
+    color: '#000000',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  receiptZigZagTop: {
+    position: 'absolute',
+    top: '-8px',
+    left: 0,
+    width: '100%',
+    height: '8px',
+    backgroundImage: 'linear-gradient(-45deg, transparent 4px, #ffffff 4px), linear-gradient(45deg, transparent 4px, #ffffff 4px)',
+    backgroundSize: '8px 8px',
+    backgroundRepeat: 'repeat-x',
+  },
+  receiptZigZagBottom: {
+    position: 'absolute',
+    bottom: '-8px',
+    left: 0,
+    width: '100%',
+    height: '8px',
+    backgroundImage: 'linear-gradient(-135deg, transparent 4px, #ffffff 4px), linear-gradient(135deg, transparent 4px, #ffffff 4px)',
+    backgroundSize: '8px 8px',
+    backgroundRepeat: 'repeat-x',
+  },
+  receiptHeader: {
+    textAlign: 'center',
+    marginBottom: '16px',
+  },
+  receiptShopName: {
+    fontSize: '20px',
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    margin: '0 0 4px 0',
+    color: '#000',
+  },
+  receiptShopInfo: {
+    fontSize: '10px',
+    color: '#333333',
+    margin: 0,
+    lineHeight: '1.4',
+  },
+  receiptAsterisks: {
+    width: '100%',
+    textAlign: 'center',
+    fontSize: '12px',
+    color: '#333333',
+    margin: '4px 0',
+    letterSpacing: '1px',
+  },
+  receiptTitle: {
+    fontSize: '15px',
+    fontWeight: '800',
+    textAlign: 'center',
+    margin: '4px 0',
+    textTransform: 'uppercase',
+  },
+  receiptTable: {
+    width: '100%',
+    fontSize: '11px',
+    marginTop: '12px',
+  },
+  receiptTableHead: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontWeight: '800',
+    paddingBottom: '6px',
+    borderBottom: '1px dashed #333333',
+    marginBottom: '8px',
+  },
+  receiptItemRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: '4px',
+  },
+  receiptItemName: {
+    flex: 1,
+    paddingRight: '8px',
+    textAlign: 'left',
+  },
+  receiptSummary: {
+    width: '100%',
+    marginTop: '8px',
+  },
+  receiptSummaryRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: '4px',
+    fontSize: '12px',
+  },
+  receiptTotalRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    margin: '8px 0',
+    fontSize: '18px',
+    fontWeight: '900',
+  },
+  receiptBarcodeContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    marginTop: '24px',
+    width: '100%',
+  },
+  receiptBarcode: {
+    height: '40px',
+    width: '100%',
+    background: 'repeating-linear-gradient(90deg, #000, #000 1px, transparent 1px, transparent 3px, #000 3px, #000 4px, transparent 4px, transparent 6px)',
+    marginBottom: '4px',
+  },
+  receiptFooterText: {
+    fontSize: '13px',
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: '12px',
   },
 };
