@@ -80,67 +80,99 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isLoaded, isCustomerDisplay]);
 
-  if (isCustomerDisplay) {
-    return <CustomerDisplay />;
-  }
+  const renderContent = () => {
+    if (isCustomerDisplay) {
+      return <CustomerDisplay />;
+    }
 
-  if (isLoggedIn) {
-    return <Home />;
-  }
+    if (isLoggedIn) {
+      return <Home />;
+    }
 
-  if (isLoaded) {
-    return <Login onLogin={(user) => {
-      setIsLoggedIn(true);
-      setCurrentUser(user);
-    }} />;
-  }
+    if (isLoaded) {
+      return <Login onLogin={(user) => {
+        setIsLoggedIn(true);
+        setCurrentUser(user);
+      }} />;
+    }
+
+    return (
+      <div style={styles.container}>
+        {/* Centered Content */}
+        <div style={styles.content}>
+          
+          {/* Logo Container */}
+          <div style={styles.logoContainer}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#0ea5e9"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {/* Base */}
+              <path d="M8 22h8" />
+              
+              {/* Stem */}
+              <path d="M12 15v7" />
+              
+              {/* Glass Triangle */}
+              <path d="M3 4l9 11 9-11Z" />
+              
+              {/* Drink level line */}
+              <line x1="6.3" y1="8" x2="17.7" y2="8" />
+            </svg>
+          </div>
+
+          {/* Title */}
+          <h1 style={styles.title}>LiquorPOS</h1>
+
+          {/* Loading Text */}
+          <p style={styles.subtitle}>Loading your workspace...</p>
+
+          {/* Progress Bar Container */}
+          <div style={styles.progressBarContainer}>
+            <div style={{ ...styles.progressBarFill, width: `${progress}%` }} className="loading-bar-animated" />
+          </div>
+        </div>
+
+        {/* Version Number */}
+        <div style={styles.version}>v1.0.2</div>
+      </div>
+    );
+  };
 
   return (
-    <div style={styles.container}>
-      {/* Centered Content */}
-      <div style={styles.content}>
-        
-        {/* Logo Container */}
-        <div style={styles.logoContainer}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#0ea5e9"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            {/* Base */}
-            <path d="M8 22h8" />
-            
-            {/* Stem */}
-            <path d="M12 15v7" />
-            
-            {/* Glass Triangle */}
-            <path d="M3 4l9 11 9-11Z" />
-            
-            {/* Drink level line */}
-            <line x1="6.3" y1="8" x2="17.7" y2="8" />
-          </svg>
-        </div>
+    <div style={{ display: 'contents' }}>
+      {renderContent()}
 
-        {/* Title */}
-        <h1 style={styles.title}>LiquorPOS</h1>
-
-        {/* Loading Text */}
-        <p style={styles.subtitle}>Loading your workspace...</p>
-
-        {/* Progress Bar Container */}
-        <div style={styles.progressBarContainer}>
-          <div style={{ ...styles.progressBarFill, width: `${progress}%` }} className="loading-bar-animated" />
+      {/* Responsive Restriction Overlay */}
+      <div className="responsive-restriction-overlay">
+        <div className="restriction-card">
+          <div className="restriction-icon-container">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <h2 className="restriction-title">Screen Size Not Supported</h2>
+          <p className="restriction-text">
+            LiquorPOS is optimized for professional desktop and tablet displays (1024px+). 
+            Please use a larger screen for the best POS experience.
+          </p>
+          <div className="restriction-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Optimized for Desktop & iPad Landscape
+          </div>
         </div>
       </div>
-
-      {/* Version Number */}
-      <div style={styles.version}>v1.0.2</div>
     </div>
   );
 }
