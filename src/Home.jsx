@@ -973,22 +973,36 @@ export default function Home() {
         <div style={styles.headerLeft}>
           <Tooltip label="Add Product" position="bottom">
             <div
-              style={{ ...styles.logoBlueSquare, cursor: 'pointer', backgroundColor: '#0f172a', border: '1px solid #1e293b', transition: 'background-color 0.15s ease, box-shadow 0.15s ease' }}
-              onClick={(e) => {
-                setIsAddProductModalOpen(true);
-                e.currentTarget.style.backgroundColor = '#0f172a';
-                e.currentTarget.style.boxShadow = 'none';
+              style={{ 
+                width: '44px', 
+                height: '44px', 
+                borderRadius: '50%', 
+                backgroundColor: '#e0f2fe', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease'
               }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1e293b'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.25)'; }}
-              onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#0f172a'; e.currentTarget.style.boxShadow = 'none'; }}
+              onClick={() => setIsAddProductModalOpen(true)}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 0 0 4px rgba(14,165,233,0.15)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#0ea5e9"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M8 22h8" />
-                <path d="M12 11v11" />
-                <path d="M19 3l-7 8-7-8Z" />
-                <circle cx="6" cy="6" r="3.5" stroke="#fde047" strokeWidth="2" fill="#fef08a" />
-                <line x1="15" y1="8" x2="20" y2="3" stroke="#e2e8f0" strokeWidth="1.5" />
-                <circle cx="20" cy="3" r="2" fill="#ef4444" stroke="none" />
+                <path d="M12 15v7" />
+                <path d="M3 4l9 11 9-11Z" />
+                <line x1="6.3" y1="8" x2="17.7" y2="8" />
               </svg>
             </div>
           </Tooltip>
@@ -1059,7 +1073,7 @@ export default function Home() {
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <svg style={{ marginRight: '10px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <svg style={{ marginRight: '10px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                     Profile Settings
                   </div>
                   <div
@@ -1067,7 +1081,7 @@ export default function Home() {
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <svg style={{ marginRight: '10px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <svg style={{ marginRight: '10px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
                     System Config
                   </div>
                   <div style={styles.dropdownDivider} />
@@ -1077,7 +1091,7 @@ export default function Home() {
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fef2f2'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <svg style={{ marginRight: '10px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <svg style={{ marginRight: '10px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
                     Logout
                   </div>
                 </div>
@@ -1089,7 +1103,7 @@ export default function Home() {
 
       {/* Sub-Header Tabs */}
       <div style={styles.subHeader}>
-        {[{id:'POS',label:'POS',icon:<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>},{id:'Cash Drawer',label:'Cash Drawer',icon:<><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></>},{id:'Process Return',label:'Process Return',icon:<><path d="M21 2v6h-6"/><path d="M21 13a9 9 0 1 1-3-7.7L21 8"/></>},{id:'Lookup Transaction',label:'Lookup Transaction',icon:<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>}].map(tab => {
+        {[{ id: 'POS', label: 'POS', icon: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></> }, { id: 'Cash Drawer', label: 'Cash Drawer', icon: <><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></> }, { id: 'Process Return', label: 'Process Return', icon: <><path d="M21 2v6h-6" /><path d="M21 13a9 9 0 1 1-3-7.7L21 8" /></> }, { id: 'Lookup Transaction', label: 'Lookup Transaction', icon: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></> }].map(tab => {
           const isActive = activeNavTab === tab.id;
           const isHovered = hoveredNavTab === tab.id;
           return (
@@ -1730,7 +1744,7 @@ export default function Home() {
                       onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(14,165,233,0.2)'; }}
                       onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                     </div>
                   )}
                 </button>
@@ -2641,13 +2655,13 @@ export default function Home() {
             <h2 style={{ ...styles.successTitle, color: '#0f172a' }}>Refund Successful</h2>
             <p style={styles.successSubtitle}>The refund has been processed and stock reversed.</p>
 
-            <ReceiptPreview 
-              cart={refundDetails.items || []} 
+            <ReceiptPreview
+              cart={refundDetails.items || []}
               successDetails={{
                 total: refundDetails.amount,
                 txnId: refundDetails.id,
                 authCode: 'REFUND'
-              }} 
+              }}
               paymentMethod={refundDetails.method}
               isRefund={true}
             />
@@ -2693,34 +2707,34 @@ export default function Home() {
               <>
                 <h2 style={{ ...styles.successTitle, fontSize: '20px', marginBottom: '8px' }}>Receipt Preview</h2>
                 <p style={{ ...styles.successSubtitle, marginBottom: '0px' }}>Verify the details before printing.</p>
-                
-                <ReceiptPreview 
-                  cart={cart} 
-                  successDetails={successDetails} 
-                  paymentMethod={successDetails.method} 
+
+                <ReceiptPreview
+                  cart={cart}
+                  successDetails={successDetails}
+                  paymentMethod={successDetails.method}
                 />
 
                 <div style={{ ...styles.successBtnRow, marginTop: '16px' }}>
-                  <button 
-                    style={{ ...styles.successBtnPrint, backgroundColor: '#f1f5f9', flex: 1 }} 
+                  <button
+                    style={{ ...styles.successBtnPrint, backgroundColor: '#f1f5f9', flex: 1 }}
                     onClick={() => setIsReceiptPreviewVisible(false)}
                   >
                     Back
                   </button>
-                  <button 
-                    style={{ ...styles.successBtnNewSale, flex: 2 }} 
+                  <button
+                    style={{ ...styles.successBtnNewSale, flex: 2 }}
                     onClick={() => {
-                       console.log("Printing...");
-                       // In a real app, this might trigger window.print() 
-                       // or call a bridge to a thermal printer
+                      console.log("Printing...");
+                      // In a real app, this might trigger window.print() 
+                      // or call a bridge to a thermal printer
                     }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                     Print
                   </button>
                 </div>
-                
-                <button 
+
+                <button
                   style={{ ...styles.dropdownItem, color: '#64748b', justifyContent: 'center', marginTop: '12px', width: '100%' }}
                   onClick={() => { setIsPaymentSuccessOpen(false); resetPOS(); }}
                 >

@@ -53,7 +53,7 @@ const CustomerDisplay = () => {
 
   useEffect(() => {
     const channel = new BroadcastChannel('liquor-pos-sync');
-    
+
     channel.onmessage = (event) => {
       const { type, data } = event.data;
       if (type === 'CART_UPDATE') {
@@ -93,14 +93,30 @@ const CustomerDisplay = () => {
       {/* Top Header Sync with Home.jsx */}
       <header style={styles.header}>
         <div style={styles.headerLeft}>
-          <div style={styles.logoBlueSquare}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            backgroundColor: '#e0f2fe',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#0ea5e9"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M8 22h8" />
-              <path d="M12 11v11" />
-              <path d="M19 3l-7 8-7-8Z" />
-              <circle cx="6" cy="6" r="3.5" stroke="#fde047" strokeWidth="2" fill="#fef08a" />
-              <line x1="15" y1="8" x2="20" y2="3" stroke="#e2e8f0" strokeWidth="1.5" />
-              <circle cx="20" cy="3" r="2" fill="#ef4444" stroke="none" />
+              <path d="M12 15v7" />
+              <path d="M3 4l9 11 9-11Z" />
+              <line x1="6.3" y1="8" x2="17.7" y2="8" />
             </svg>
           </div>
           <h1 style={styles.brandName}>Liquor POS</h1>
@@ -148,7 +164,7 @@ const CustomerDisplay = () => {
             {cart.length === 0 ? (
               <div style={styles.emptyCartContainer}>
                 <div style={styles.emptyCartIcon}>
-                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
                 </div>
                 <p style={styles.emptyCartText}>Welcome! Ready to start your checkout.</p>
               </div>
@@ -191,10 +207,10 @@ const CustomerDisplay = () => {
         {/* Right Panel: Promo */}
         <div style={styles.rightPanel}>
           <div style={styles.promoCard}>
-            <img 
-              src={winePromo} 
-              alt="Wine Promo" 
-              style={styles.promoImage} 
+            <img
+              src={winePromo}
+              alt="Wine Promo"
+              style={styles.promoImage}
               onError={(e) => {
                 // Fallback for demo if path is different
                 e.target.src = "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=800&q=80";
@@ -214,7 +230,7 @@ const CustomerDisplay = () => {
           <div style={styles.successCard}>
             <div style={styles.successIconBox}>
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
+                <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
             <h2 style={styles.successTitle}>Payment Successful!</h2>

@@ -25,7 +25,7 @@ export default function Login({ onLogin }) {
         // Store JWT and User info
         localStorage.setItem('liquor_pos_token', data.access_token);
         localStorage.setItem('liquor_pos_user', JSON.stringify(data.user));
-        
+
         if (onLogin) {
           onLogin(data.user);
         }
@@ -41,10 +41,10 @@ export default function Login({ onLogin }) {
 
   return (
     <div style={styles.container}>
-      
+
       {/* Main Card */}
       <div style={styles.card}>
-        
+
         {/* Logo */}
         <div style={styles.logoContainer}>
           <svg
@@ -54,19 +54,14 @@ export default function Login({ onLogin }) {
             viewBox="0 0 24 24"
             fill="none"
             stroke="#0ea5e9"
-            strokeWidth="2"
+            strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            {/* Simple Wine Glass on the Left */}
-            <path d="M5 19h4" />
-            <path d="M7 11v8" />
-            <path d="M3 3l4 8 4-8Z" />
-            {/* Bottle on the Right */}
-            <rect x="12" y="9" width="8" height="10" rx="2" />
-            <path d="M14 2v4a2 2 0 0 0-2 2v1" />
-            <path d="M20 9a2 2 0 0 0-2-2V6V2" />
-            <path d="M14 2h6" />
+            <path d="M8 22h8" />
+            <path d="M12 15v7" />
+            <path d="M3 4l9 11 9-11Z" />
+            <line x1="6.3" y1="8" x2="17.7" y2="8" />
           </svg>
         </div>
 
@@ -92,7 +87,7 @@ export default function Login({ onLogin }) {
 
         {/* Form Elements */}
         <form style={styles.form} onSubmit={handleSubmit}>
-          
+
           {/* Username Field */}
           <div style={styles.inputGroup}>
             <label style={styles.label}>Username or Email</label>
@@ -135,12 +130,12 @@ export default function Login({ onLogin }) {
           </div>
 
           {/* Submit Button */}
-          <button 
-            type="submit" 
-            style={{ 
-              ...styles.loginButton, 
-              opacity: isLoading ? 0.7 : 1, 
-              cursor: isLoading ? 'not-allowed' : 'pointer' 
+          <button
+            type="submit"
+            style={{
+              ...styles.loginButton,
+              opacity: isLoading ? 0.7 : 1,
+              cursor: isLoading ? 'not-allowed' : 'pointer'
             }}
             disabled={isLoading}
           >
