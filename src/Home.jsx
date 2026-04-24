@@ -847,11 +847,12 @@ export default function Home() {
             sku: item.product_sku || '—',
             originalQty: original,
             returnedQty: returned,
-            purchasedQty: remaining, // Use remaining as the 'purchased' pool for current session
+            purchasedQty: remaining,
             price: item.unit_price,
             unit_discount: item.unit_discount || 0,
+            image_url: item.product_image,
+            bg: item.product_bg || '#f1f5f9',
             eligibility: remaining === 0 ? 'Fully Returned' : (item.return_policy || 'Returnable'),
-            bg: '#f1f5f9'
           };
         });
         setReturnItems(mapped);
@@ -971,41 +972,39 @@ export default function Home() {
       {/* Top Header */}
       <header style={styles.topHeader}>
         <div style={styles.headerLeft}>
-          <Tooltip label="Add Product" position="bottom">
-            <div
-              style={{ 
-                width: '44px', 
-                height: '44px', 
-                borderRadius: '50%', 
-                backgroundColor: '#e0f2fe', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease'
-              }}
-              onClick={() => setIsAddProductModalOpen(true)}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 0 0 4px rgba(14,165,233,0.15)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}
+          <div
+            style={{ 
+              width: '44px', 
+              height: '44px', 
+              borderRadius: '50%', 
+              backgroundColor: '#e0f2fe', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease'
+            }}
+            onClick={() => setIsAddProductModalOpen(true)}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 0 0 4px rgba(14,165,233,0.15)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#0ea5e9"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#0ea5e9"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M8 22h8" />
-                <path d="M12 15v7" />
-                <path d="M3 4l9 11 9-11Z" />
-                <line x1="6.3" y1="8" x2="17.7" y2="8" />
-              </svg>
-            </div>
-          </Tooltip>
+              <path d="M8 22h8" />
+              <path d="M12 15v7" />
+              <path d="M3 4l9 11 9-11Z" />
+              <line x1="6.3" y1="8" x2="17.7" y2="8" />
+            </svg>
+          </div>
           <h1 style={styles.headerTitle}>Liquor POS</h1>
 
         </div>
@@ -1272,12 +1271,24 @@ export default function Home() {
               <div style={styles.returnItemsContainer}>
                 <div style={styles.returnItemListSection}>
                   <div style={styles.returnHeaderSection}>
-                    <h1 style={styles.returnMainTitle}>Process Return</h1>
-                    <p style={styles.returnMetadata}>
-                      Original Transaction: #{String(fetchedTransaction.id).padStart(12, '0')} |
-                      Purchase Date: {new Date(fetchedTransaction.created_at).toLocaleDateString()}
-                    </p>
-                    <p style={styles.returnSelectPrompt}>Select items and quantities to return.</p>
+                    <div style={styles.returnHeaderLeft}>
+                      <div style={styles.returnTitleRow}>
+                        <button 
+                          style={styles.returnBackBtn} 
+                          onClick={() => setIsReturnItemsViewOpen(false)}
+                          onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
+                          onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.color = '#64748b'; }}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        </button>
+                        <h1 style={styles.returnMainTitle}>Process Return</h1>
+                      </div>
+                      <p style={styles.returnSelectPrompt}>Select items and quantities from the original purchase.</p>
+                    </div>
+                    <div style={styles.returnMetadata}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      Txn: #{String(fetchedTransaction.id).padStart(12, '0')} • {new Date(fetchedTransaction.created_at).toLocaleDateString()}
+                    </div>
                   </div>
 
                   <table style={styles.returnTable}>
@@ -1286,6 +1297,7 @@ export default function Home() {
                         <th style={styles.returnTableHeader}>
                           <input
                             type="checkbox"
+                            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                             onChange={(e) => {
                               if (e.target.checked) setSelectedReturnIds(returnItems.filter(i => i.purchasedQty > 0).map(i => i.id));
                               else setSelectedReturnIds([]);
@@ -1293,13 +1305,12 @@ export default function Home() {
                             checked={selectedReturnIds.length === returnItems.filter(i => i.purchasedQty > 0).length && returnItems.filter(i => i.purchasedQty > 0).length > 0}
                           />
                         </th>
-                        <th style={styles.returnTableHeader}>Product</th>
-                        <th style={styles.returnTableHeader}>Purchase Qty</th>
-                        <th style={styles.returnTableHeader}>Prev. Returned</th>
+                        <th style={styles.returnTableHeader}>Product Details</th>
+                        <th style={styles.returnTableHeader}>Purchased</th>
                         <th style={styles.returnTableHeader}>Remaining</th>
-                        <th style={styles.returnTableHeader}>Returning NOW</th>
-                        <th style={styles.returnTableHeader}>Price</th>
-                        <th style={styles.returnTableHeader}>Eligibility</th>
+                        <th style={styles.returnTableHeader}>Returning</th>
+                        <th style={styles.returnTableHeader}>Refund Unit</th>
+                        <th style={styles.returnTableHeader}>Condition</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1308,10 +1319,18 @@ export default function Home() {
                         const isFullyReturned = item.purchasedQty <= 0;
 
                         return (
-                          <tr key={item.id} style={{ ...styles.returnRow, opacity: isFullyReturned ? 0.6 : 1 }}>
+                          <tr 
+                            key={item.id} 
+                            style={{ 
+                              ...styles.returnRow, 
+                              ...(isSelected ? styles.returnRowActive : {}),
+                              opacity: isFullyReturned ? 0.5 : 1 
+                            }}
+                          >
                             <td style={{ ...styles.returnCell, ...styles.returnCellFirst }}>
                               <input
                                 type="checkbox"
+                                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                                 checked={isSelected}
                                 onChange={() => toggleReturnItem(item.id)}
                                 disabled={isFullyReturned}
@@ -1320,7 +1339,15 @@ export default function Home() {
                             <td style={styles.returnCell}>
                               <div style={styles.returnProductInfo}>
                                 <div style={{ ...styles.returnProductImage, backgroundColor: item.bg }}>
-                                  <svg width="18" height="32" viewBox="0 0 24 64" fill="none" stroke="#475569" strokeWidth="2"><rect x="5" y="22" width="14" height="40" rx="3" fill="#ffffff" /><rect x="8" y="2" width="8" height="8" rx="2" fill="#94a3b8" /></svg>
+                                  {item.image_url ? (
+                                    <img 
+                                      src={item.image_url} 
+                                      alt={item.name} 
+                                      style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }} 
+                                    />
+                                  ) : (
+                                    <svg width="22" height="36" viewBox="0 0 24 64" fill="none" stroke="#475569" strokeWidth="2"><rect x="5" y="22" width="14" height="40" rx="3" fill="#ffffff" /><rect x="8" y="2" width="8" height="8" rx="2" fill="#94a3b8" /></svg>
+                                  )}
                                 </div>
                                 <div>
                                   <div style={styles.returnProductName}>{item.name}</div>
@@ -1329,31 +1356,32 @@ export default function Home() {
                               </div>
                             </td>
                             <td style={styles.returnCell}>{item.originalQty}</td>
-                            <td style={{ ...styles.returnCell, color: item.returnedQty > 0 ? '#ef4444' : '#64748b' }}>
-                              {item.returnedQty}
+                            <td style={{ ...styles.returnCell, fontWeight: '700', color: isFullyReturned ? '#94a3b8' : '#334155' }}>
+                              {item.purchasedQty}
                             </td>
-                            <td style={{ ...styles.returnCell, fontWeight: '700' }}>{item.purchasedQty}</td>
                             <td style={styles.returnCell}>
                               <div style={styles.qtyContainer}>
                                 <button
-                                  style={styles.qtyBtn}
+                                  style={{ ...styles.qtyBtn, opacity: !isSelected ? 0.5 : 1 }}
                                   onClick={() => handleReturnQtyChange(item.id, -1)}
                                   disabled={!isSelected || isFullyReturned}
                                 >-</button>
-                                <div style={styles.qtyValue}>{returnQuantities[item.id] || 0}</div>
+                                <div style={{ ...styles.qtyValue, color: !isSelected ? '#94a3b8' : '#0f172a' }}>{returnQuantities[item.id] || 0}</div>
                                 <button
-                                  style={styles.qtyBtn}
+                                  style={{ ...styles.qtyBtn, opacity: !isSelected ? 0.5 : 1 }}
                                   onClick={() => handleReturnQtyChange(item.id, 1)}
                                   disabled={!isSelected || isFullyReturned}
                                 >+</button>
                               </div>
                             </td>
-                            <td style={styles.returnCell}>${item.price.toFixed(2)}</td>
+                            <td style={{ ...styles.returnCell, fontWeight: '700' }}>
+                              ${(item.price - item.unit_discount).toFixed(2)}
+                            </td>
                             <td style={{ ...styles.returnCell, ...styles.returnCellLast }}>
                               <span style={{
                                 ...styles.returnBadge,
                                 backgroundColor: item.eligibility === 'Returnable' ? '#ecfdf5' : item.eligibility === 'Manager Approval' ? '#fffbeb' : '#f1f5f9',
-                                color: item.eligibility === 'Returnable' ? '#10b981' : item.eligibility === 'Manager Approval' ? '#d97706' : '#64748b'
+                                color: item.eligibility === 'Returnable' ? '#059669' : item.eligibility === 'Manager Approval' ? '#d97706' : '#64748b'
                               }}>
                                 {item.eligibility}
                               </span>
@@ -1366,31 +1394,42 @@ export default function Home() {
                 </div>
 
                 <div style={styles.returnSummarySidebar}>
-                  <div style={styles.returnSummaryCard}>
-                    <h2 style={styles.returnSummaryTitle}>Return Summary</h2>
+                  <div style={{ ...styles.returnSummaryCard, position: 'sticky', top: '32px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
+                      <div style={{ padding: '8px', backgroundColor: '#f0f9ff', borderRadius: '10px', color: '#0ea5e9' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 2v6h-6"/><path d="M21 13a9 9 0 1 1-3-7.7L21 8"/></svg>
+                      </div>
+                      <h2 style={{ ...styles.returnSummaryTitle, margin: 0 }}>Refund Summary</h2>
+                    </div>
 
                     <div style={styles.returnSummaryList}>
-                      {selectedReturnIds.map(id => {
-                        const item = returnItems.find(i => i.id === id);
-                        return (
-                          <div key={id} style={styles.returnSummaryItem}>
-                            <span>{item.name} (x{returnQuantities[id]})</span>
-                            <span>${(item?.price * returnQuantities[id] || 0).toFixed(2)}</span>
-                          </div>
-                        );
-                      })}
+                      {selectedReturnIds.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '24px 0', color: '#94a3b8', fontSize: '14px' }}>
+                          Select items to continue
+                        </div>
+                      ) : (
+                        selectedReturnIds.map(id => {
+                          const item = returnItems.find(i => i.id === id);
+                          return (
+                            <div key={id} style={styles.returnSummaryItem}>
+                              <span style={{ fontWeight: '600', color: '#334155' }}>{item.name} × {returnQuantities[id]}</span>
+                              <span style={{ fontWeight: '700', color: '#0f172a' }}>${((item?.price - item?.unit_discount) * returnQuantities[id] || 0).toFixed(2)}</span>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
 
                     <div style={styles.returnSummaryTotals}>
                       <div style={styles.returnSummaryTotalRow}>
-                        <span>Subtotal</span>
-                        <span>${returnSubtotal.toFixed(2)}</span>
+                        <span style={{ color: '#64748b', fontWeight: '500' }}>Subtotal</span>
+                        <span style={{ color: '#334155', fontWeight: '700' }}>${returnSubtotal.toFixed(2)}</span>
                       </div>
                       <div style={styles.returnSummaryTotalRow}>
-                        <span>Tax (8.25%)</span>
-                        <span>${returnTax.toFixed(2)}</span>
+                        <span style={{ color: '#64748b', fontWeight: '500' }}>Tax (8.25%)</span>
+                        <span style={{ color: '#334155', fontWeight: '700' }}>${returnTax.toFixed(2)}</span>
                       </div>
-                      <div style={{ ...styles.returnSummaryTotalRow, marginTop: '8px' }}>
+                      <div style={{ ...styles.returnSummaryTotalRow, marginTop: '12px' }}>
                         <span style={styles.returnSummaryMainTotal}>Total Refund</span>
                         <span style={styles.returnRefundValue}>${returnTotal.toFixed(2)}</span>
                       </div>
@@ -1400,43 +1439,60 @@ export default function Home() {
                       style={{
                         ...styles.returnManagerBtn,
                         opacity: selectedReturnIds.length === 0 ? 0.5 : 1,
-                        cursor: selectedReturnIds.length === 0 ? 'not-allowed' : 'pointer'
+                        boxShadow: selectedReturnIds.length === 0 ? 'none' : '0 10px 15px -3px rgba(16, 185, 129, 0.2)'
                       }}
                       onClick={() => selectedReturnIds.length > 0 && setIsReturnConfirmModalOpen(true)}
                       disabled={selectedReturnIds.length === 0}
                     >
-                      {requiresManagerApproval && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>}
+                      {requiresManagerApproval && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>}
                       {requiresManagerApproval ? 'Manager Approval Required' : 'Process Refund'}
                     </button>
-                    <button style={styles.returnCancelBtn} onClick={() => setIsReturnItemsViewOpen(false)}>Cancel</button>
+                    <button 
+                      style={styles.returnCancelBtn} 
+                      onClick={() => setIsReturnItemsViewOpen(false)}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               </div>
             ) : (
               <div style={styles.processReturnCardsRow}>
-
-                {/* Card 1 */}
-                <div style={styles.processReturnCard}>
+                {/* Card 1: Scan */}
+                <div 
+                  style={{...styles.processReturnCard, ...(returnLookupTrigger === 'barcode' ? styles.processReturnCardActive : {})}}
+                  onClick={() => document.getElementById('barcode-input').focus()}
+                >
                   <div style={styles.processReturnCardHeader}>
-                    <div style={styles.processReturnCardIcon}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 15h4M15 15h2M7 11h2M15 11h2" /><circle cx="10" cy="9" r="2" /></svg>
+                    <div style={{...styles.processReturnCardIcon, ...(returnLookupTrigger === 'barcode' ? styles.processReturnCardIconActive : {})}}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
                     </div>
                     <div>
                       <div style={styles.processReturnCardTitle}>Scan Receipt</div>
-                      <div style={styles.processReturnCardSub}>Scan the barcode from the customer's receipt.</div>
+                      <div style={styles.processReturnCardSub}>Use the barcode scanner</div>
                     </div>
                   </div>
-                  <label style={styles.processReturnLabel}>Receipt Barcode</label>
-                  <input
-                    type="text"
-                    placeholder="Scan barcode here..."
-                    style={styles.processReturnInput}
-                    value={returnReceiptBarcode}
-                    onChange={e => setReturnReceiptBarcode(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && fetchTransactionForReturn(returnReceiptBarcode, 'barcode')}
-                  />
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.processReturnLabel}>Receipt Barcode</label>
+                    <input
+                      id="barcode-input"
+                      type="text"
+                      placeholder="Scan here..."
+                      style={{
+                        ...styles.processReturnInput,
+                        ...(returnLookupTrigger === 'barcode' ? styles.processReturnInputFocus : {})
+                      }}
+                      value={returnReceiptBarcode}
+                      onChange={e => setReturnReceiptBarcode(e.target.value)}
+                      onFocus={() => setReturnLookupTrigger('barcode')}
+                      onBlur={() => setReturnLookupTrigger(null)}
+                      onKeyDown={(e) => e.key === 'Enter' && fetchTransactionForReturn(returnReceiptBarcode, 'barcode')}
+                    />
+                  </div>
                   <button
-                    style={{ ...styles.processReturnFindBtn, opacity: isReturnLookupLoading && returnLookupTrigger === 'barcode' ? 0.7 : 1 }}
+                    style={styles.processReturnFindBtn}
                     onClick={() => fetchTransactionForReturn(returnReceiptBarcode, 'barcode')}
                     disabled={isReturnLookupLoading}
                   >
@@ -1444,28 +1500,39 @@ export default function Home() {
                   </button>
                 </div>
 
-                {/* Card 2 */}
-                <div style={styles.processReturnCard}>
+                {/* Card 2: Manual ID */}
+                <div 
+                  style={{...styles.processReturnCard, ...(returnLookupTrigger === 'id' ? styles.processReturnCardActive : {})}}
+                  onClick={() => document.getElementById('id-input').focus()}
+                >
                   <div style={styles.processReturnCardHeader}>
-                    <div style={styles.processReturnCardIcon}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="9" x2="15" y2="9" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="15" x2="11" y2="15" /></svg>
+                    <div style={{...styles.processReturnCardIcon, ...(returnLookupTrigger === 'id' ? styles.processReturnCardIconActive : {})}}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
                     </div>
                     <div>
-                      <div style={styles.processReturnCardTitle}>Enter Receipt Number</div>
-                      <div style={styles.processReturnCardSub}>Manually type the transaction ID from the receipt.</div>
+                      <div style={styles.processReturnCardTitle}>Manual Entry</div>
+                      <div style={styles.processReturnCardSub}>Type Transaction ID</div>
                     </div>
                   </div>
-                  <label style={styles.processReturnLabel}>Transaction ID</label>
-                  <input
-                    type="text"
-                    placeholder="Enter transaction ID..."
-                    style={styles.processReturnInput}
-                    value={returnTransactionId}
-                    onChange={e => setReturnTransactionId(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && fetchTransactionForReturn(returnTransactionId, 'id')}
-                  />
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.processReturnLabel}>Transaction ID</label>
+                    <input
+                      id="id-input"
+                      type="text"
+                      placeholder="Enter ID..."
+                      style={{
+                        ...styles.processReturnInput,
+                        ...(returnLookupTrigger === 'id' ? styles.processReturnInputFocus : {})
+                      }}
+                      value={returnTransactionId}
+                      onChange={e => setReturnTransactionId(e.target.value)}
+                      onFocus={() => setReturnLookupTrigger('id')}
+                      onBlur={() => setReturnLookupTrigger(null)}
+                      onKeyDown={(e) => e.key === 'Enter' && fetchTransactionForReturn(returnTransactionId, 'id')}
+                    />
+                  </div>
                   <button
-                    style={{ ...styles.processReturnFindBtn, opacity: isReturnLookupLoading && returnLookupTrigger === 'id' ? 0.7 : 1 }}
+                    style={styles.processReturnFindBtn}
                     onClick={() => fetchTransactionForReturn(returnTransactionId, 'id')}
                     disabled={isReturnLookupLoading}
                   >
@@ -1473,23 +1540,41 @@ export default function Home() {
                   </button>
                 </div>
 
-                {/* Card 3 */}
-                <div style={{ ...styles.processReturnCard, backgroundColor: '#f8fafc' }}>
+                {/* Card 3: Restricted */}
+                <div style={{ ...styles.processReturnCard, backgroundColor: '#f8fafc', opacity: 0.8 }}>
                   <div style={styles.processReturnCardHeader}>
-                    <div style={{ ...styles.processReturnCardIcon, backgroundColor: '#e2e8f0' }}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    <div style={{ ...styles.processReturnCardIcon, backgroundColor: '#f1f5f9', color: '#94a3b8' }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
                     <div>
-                      <div style={styles.processReturnCardTitle}>Manual Return</div>
-                      <div style={{ fontSize: '11px', color: '#0ea5e9', fontWeight: '600' }}>(Manager Access)</div>
+                      <div style={{...styles.processReturnCardTitle, color: '#64748b'}}>Manual Return</div>
+                      <div style={{ fontSize: '11px', color: '#0ea5e9', fontWeight: '700' }}>MANAGER ACCESS ONLY</div>
                     </div>
                   </div>
-                  <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.6', margin: 0 }}>Create a return without a receipt. This option requires manager approval and authentication.</p>
-                  <button style={styles.processReturnManualBtn}>Proceed to Manual Return</button>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.6', margin: 0, flex: 1 }}>
+                    Create a return without a receipt. Requires higher level authorization.
+                  </p>
+                  <button style={styles.processReturnManualBtn} disabled>Restricted Action</button>
                 </div>
 
                 {returnLookupError && (
-                  <div style={{ position: 'absolute', bottom: '-60px', left: '0', right: '0', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#ef4444', padding: '12px 16px', borderRadius: '8px', textAlign: 'center', fontSize: '14px', fontWeight: '500' }}>
+                  <div style={{ 
+                    position: 'absolute', 
+                    bottom: '-80px', 
+                    left: '50%', 
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#fef2f2', 
+                    border: '1.5px solid #fee2e2', 
+                    color: '#ef4444', 
+                    padding: '16px 24px', 
+                    borderRadius: '12px', 
+                    textAlign: 'center', 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    boxShadow: '0 10px 15px -3px rgba(239, 68, 68, 0.1)',
+                    animation: 'fadeIn 0.2s ease-out'
+                  }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{marginRight: '10px', verticalAlign: 'middle'}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     {returnLookupError}
                   </div>
                 )}
@@ -1706,48 +1791,50 @@ export default function Home() {
                     </svg>
                   </button>
                 </Tooltip>
-                <button
-                  style={{
-                    ...styles.selectCustomerBtn,
-                    backgroundColor: selectedCustomer ? '#f0f9ff' : '#0ea5e9',
-                    color: selectedCustomer ? '#0ea5e9' : 'white',
-                    border: selectedCustomer ? '1px solid #0ea5e9' : 'none',
-                    transition: 'background-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease',
-                  }}
-                  onClick={(e) => {
-                    setIsCustomerModalOpen(true);
-                    e.currentTarget.style.backgroundColor = selectedCustomer ? '#f0f9ff' : '#0ea5e9';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.filter = 'none';
-                  }}
-                  onMouseEnter={e => {
-                    if (selectedCustomer) {
-                      e.currentTarget.style.backgroundColor = '#e0f2fe';
-                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.15)';
-                    } else {
-                      e.currentTarget.style.filter = 'brightness(1.1)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(14,165,233,0.35)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.backgroundColor = selectedCustomer ? '#f0f9ff' : '#0ea5e9';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.filter = 'none';
-                  }}
-                >
-                  <svg style={{ marginRight: '8px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-                  {selectedCustomer ? selectedCustomer.name : 'Select Customer'}
-                  {selectedCustomer && (
-                    <div
-                      onClick={(e) => { e.stopPropagation(); handleDeselectCustomer(); }}
-                      style={{ marginLeft: '8px', padding: '4px', borderRadius: '50%', cursor: 'pointer', transition: 'background-color 0.15s ease', display: 'inline-flex' }}
-                      onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(14,165,233,0.2)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                    </div>
-                  )}
-                </button>
+                <Tooltip label={selectedCustomer ? "Change Customer" : "Select Customer"} position="bottom">
+                  <button
+                    style={{
+                      ...styles.selectCustomerBtn,
+                      backgroundColor: selectedCustomer ? '#f0f9ff' : '#0ea5e9',
+                      color: selectedCustomer ? '#0ea5e9' : 'white',
+                      border: selectedCustomer ? '1px solid #0ea5e9' : 'none',
+                      transition: 'background-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease',
+                    }}
+                    onClick={(e) => {
+                      setIsCustomerModalOpen(true);
+                      e.currentTarget.style.backgroundColor = selectedCustomer ? '#f0f9ff' : '#0ea5e9';
+                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.filter = 'none';
+                    }}
+                    onMouseEnter={e => {
+                      if (selectedCustomer) {
+                        e.currentTarget.style.backgroundColor = '#e0f2fe';
+                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(14,165,233,0.15)';
+                      } else {
+                        e.currentTarget.style.filter = 'brightness(1.1)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(14,165,233,0.35)';
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.backgroundColor = selectedCustomer ? '#f0f9ff' : '#0ea5e9';
+                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.filter = 'none';
+                    }}
+                  >
+                    <svg style={{ marginRight: '8px' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                    {selectedCustomer ? selectedCustomer.name : 'Select Customer'}
+                    {selectedCustomer && (
+                      <div
+                        onClick={(e) => { e.stopPropagation(); handleDeselectCustomer(); }}
+                        style={{ marginLeft: '8px', padding: '4px', borderRadius: '50%', cursor: 'pointer', transition: 'background-color 0.15s ease', display: 'inline-flex' }}
+                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(14,165,233,0.2)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                      </div>
+                    )}
+                  </button>
+                </Tooltip>
               </div>
 
               <div style={styles.categoryTabs}>
@@ -2410,18 +2497,29 @@ export default function Home() {
 
       {/* Confirm Return Requirements Modal */}
       {isReturnConfirmModalOpen && (
-        <div style={styles.paymentViewContainer}>
+        <div style={styles.modalOverlay}>
           <div style={styles.confirmReturnModalCard}>
-            <h2 style={styles.confirmReturnTitle}>Confirm Return Requirements</h2>
+            <div style={{ padding: '20px', backgroundColor: '#fffbeb', borderRadius: '50%', marginBottom: '24px', color: '#d97706', border: '1px solid #fef3c7' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <h2 style={styles.confirmReturnTitle}>Verification Required</h2>
             <p style={styles.confirmReturnSubtitle}>
-              Please confirm that all returned bottles are unopened and seals are intact before proceeding.
+              Please verify that all items are in their original condition. Unsealed or damaged items may require manager bypass.
             </p>
 
-            <div style={styles.confirmCheckRow} onClick={() => setReturnRequirementsAccepted(!returnRequirementsAccepted)}>
+            <div 
+              style={{
+                ...styles.confirmCheckRow, 
+                backgroundColor: returnRequirementsAccepted ? '#eff6ff' : '#f8fafc',
+                borderColor: returnRequirementsAccepted ? '#0ea5e9' : '#e2e8f0',
+                transition: 'all 0.2s ease'
+              }} 
+              onClick={() => setReturnRequirementsAccepted(!returnRequirementsAccepted)}
+            >
               <div style={{
                 width: '24px',
                 height: '24px',
-                borderRadius: '50%',
+                borderRadius: '8px',
                 border: returnRequirementsAccepted ? 'none' : '2px solid #cbd5e1',
                 backgroundColor: returnRequirementsAccepted ? '#0ea5e9' : 'transparent',
                 display: 'flex',
@@ -2431,7 +2529,7 @@ export default function Home() {
               }}>
                 {returnRequirementsAccepted && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
               </div>
-              <span style={styles.confirmCheckText}>I confirm all items are sealed and unopened.</span>
+              <span style={{ ...styles.confirmCheckText, color: returnRequirementsAccepted ? '#0f172a' : '#64748b' }}>Items are sealed and in original condition.</span>
             </div>
 
             <div style={styles.confirmModalBtnRow}>
@@ -2439,19 +2537,21 @@ export default function Home() {
                 setIsReturnConfirmModalOpen(false);
                 setReturnRequirementsAccepted(false);
               }}>
-                Cancel
+                Dismiss
               </button>
               <button
-                style={returnRequirementsAccepted ? styles.confirmBtnRefundEnabled : styles.confirmBtnRefundDisabled}
+                style={{
+                  ...(returnRequirementsAccepted ? styles.confirmBtnRefundEnabled : styles.confirmBtnRefundDisabled),
+                  boxShadow: returnRequirementsAccepted ? '0 10px 15px -3px rgba(14, 165, 233, 0.3)' : 'none'
+                }}
                 disabled={!returnRequirementsAccepted}
                 onClick={() => {
                   setIsReturnConfirmModalOpen(false);
                   setReturnRequirementsAccepted(false);
-                  // Open Reason modal instead of finalizing directly
                   setIsReturnReasonModalOpen(true);
                 }}
               >
-                Process Refund
+                Proceed to Reason
               </button>
             </div>
           </div>
@@ -2460,23 +2560,28 @@ export default function Home() {
 
       {/* Reason for Return Modal */}
       {isReturnReasonModalOpen && (
-        <div style={styles.paymentViewContainer}>
+        <div style={styles.modalOverlay}>
           <div style={styles.reasonReturnModalCard}>
-            <h2 style={styles.confirmReturnTitle}>Reason for Return</h2>
-            <p style={{ ...styles.confirmReturnSubtitle, textAlign: 'left', margin: '4px 0 0 0' }}>
-              Please select a reason to continue.
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h2 style={{ ...styles.confirmReturnTitle, margin: 0 }}>Return Reason</h2>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }} onClick={() => setIsReturnReasonModalOpen(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <p style={{ ...styles.confirmReturnSubtitle, textAlign: 'left', margin: '0 0 24px 0' }}>
+              Tell us why the customer is returning these items.
             </p>
 
             <div style={styles.reasonList}>
               {[
-                'Open Seals',
-                'Defective piece',
-                'Damaged Product',
-                'Expired Product',
-                'Wrong Item',
-                'Customer Dissatisfied',
-                'Other (Specify)'
-              ].map(reason => {
+                { label: 'Unopened / Not Needed', sub: 'Customer changed their mind' },
+                { label: 'Damaged / Leaking', sub: 'Defective bottle or seal' },
+                { label: 'Expired Product', sub: 'Past sell-by date' },
+                { label: 'Wrong Item Purchased', sub: 'Incorrect product selected' },
+                { label: 'Quality Dissatisfaction', sub: 'Customer unhappy with product' },
+                { label: 'Other Reason...', sub: 'Specify custom reason below' }
+              ].map(reasonObj => {
+                const reason = reasonObj.label;
                 const isActive = selectedReturnReason === reason;
                 return (
                   <div
@@ -2484,22 +2589,32 @@ export default function Home() {
                     style={{
                       ...styles.reasonItem,
                       ...(isActive ? styles.reasonItemActive : {}),
-                      ...(isActive && reason === 'Other (Specify)' ? { paddingBottom: '0', flexDirection: 'column', alignItems: 'flex-start' } : {})
+                      padding: '16px 20px',
                     }}
                     onClick={() => setSelectedReturnReason(reason)}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: isActive && reason === 'Other (Specify)' ? '12px' : '0' }}>
-                      <div style={{ ...styles.reasonRadio, ...(isActive ? styles.reasonRadioActive : {}) }}>
-                        {isActive && <div style={styles.reasonRadioDot} />}
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                      <div style={{ ...styles.reasonRadio, ...(isActive ? styles.reasonRadioActive : {}), border: isActive ? '5px solid #0ea5e9' : '2px solid #e2e8f0', width: '22px', height: '22px' }}>
+                        {/* Dot is handled by border size now for better look */}
                       </div>
-                      <span style={styles.reasonText}>{reason}</span>
+                      <div style={{ marginLeft: '4px' }}>
+                        <div style={{ ...styles.reasonText, color: isActive ? '#0f172a' : '#334155' }}>{reason}</div>
+                        <div style={{ fontSize: '12px', color: isActive ? '#0ea5e9' : '#94a3b8', fontWeight: '500' }}>{reasonObj.sub}</div>
+                      </div>
                     </div>
 
-                    {isActive && reason === 'Other (Specify)' && (
-                      <div style={{ ...styles.reasonOtherBox, width: '100%', marginBottom: '16px', boxSizing: 'border-box' }} onClick={(e) => e.stopPropagation()}>
+                    {isActive && reason === 'Other Reason...' && (
+                      <div style={{ marginTop: '16px', width: '100%', boxSizing: 'border-box' }} onClick={(e) => e.stopPropagation()}>
                         <textarea
-                          placeholder="Enter other reason here..."
-                          style={styles.reasonTextarea}
+                          placeholder="Please specify..."
+                          style={{
+                             ...styles.reasonTextarea,
+                             backgroundColor: '#ffffff',
+                             border: '1.5px solid #0ea5e9',
+                             borderRadius: '12px',
+                             padding: '12px',
+                             height: '80px'
+                          }}
                           value={customReturnReason}
                           onChange={(e) => setCustomReturnReason(e.target.value)}
                         />
@@ -2510,34 +2625,20 @@ export default function Home() {
               })}
             </div>
 
-            <div style={{ ...styles.confirmModalBtnRow, justifyContent: 'flex-end' }}>
-              <button
-                style={{ ...styles.confirmBtnCancel, flex: 'none', padding: '0 32px' }}
-                onClick={() => {
-                  setIsReturnReasonModalOpen(false);
-                  setSelectedReturnReason('');
-                  setCustomReturnReason('');
-                }}
-              >
-                Cancel
-              </button>
+            <div style={{ marginTop: '24px' }}>
               <button
                 style={{
                   ...(selectedReturnReason ? styles.confirmBtnRefundEnabled : styles.confirmBtnRefundDisabled),
-                  flex: 'none',
-                  padding: '0 32px'
+                  width: '100%',
+                  height: '52px'
                 }}
                 disabled={!selectedReturnReason}
                 onClick={() => {
                   setIsReturnReasonModalOpen(false);
-                  // Open Refund Method modal instead of finalizing
                   setIsRefundMethodModalOpen(true);
-                  // Resets
-                  // setSelectedReturnReason(''); // Keep it for final logic if needed, but we'll reset at the end
-                  // setCustomReturnReason('');
                 }}
               >
-                Confirm
+                Continue to Refund
               </button>
             </div>
           </div>
@@ -2546,7 +2647,7 @@ export default function Home() {
 
       {/* Select Refund Method Modal */}
       {isRefundMethodModalOpen && (
-        <div style={styles.paymentViewContainer}>
+        <div style={styles.modalOverlay}>
           <div style={styles.reasonReturnModalCard}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <h2 style={{ ...styles.confirmReturnTitle, margin: 0 }}>Select Refund Method</h2>
@@ -2620,23 +2721,23 @@ export default function Home() {
 
       {/* Request Successful Popup */}
       {isReturnRequestSuccessOpen && (
-        <div style={styles.paymentViewContainer}>
-          <div style={styles.refundRequestCard}>
-            <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        <div style={styles.modalOverlay}>
+          <div style={{...styles.refundRequestCard, padding: '48px'}}>
+            <div style={{ width: '80px', height: '80px', borderRadius: '24px', backgroundColor: '#f0f9ff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '32px', border: '1px solid #e0f2fe' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             </div>
-            <h2 style={styles.confirmReturnTitle}>Request Successful</h2>
-            <p style={{ ...styles.confirmReturnSubtitle, marginBottom: '32px' }}>
-              Your return request for items requiring manager approval has been submitted successfully.
+            <h2 style={{...styles.confirmReturnTitle, fontSize: '28px'}}>Request Submitted</h2>
+            <p style={{ ...styles.confirmReturnSubtitle, marginBottom: '40px', fontSize: '16px' }}>
+              Approval request sent for items requiring manager verification. You will be notified once authorized.
             </p>
             <button
-              style={{ ...styles.confirmBtnRefundEnabled, padding: '0 48px', flex: 'none' }}
+              style={{ ...styles.confirmBtnRefundEnabled, padding: '0 56px', flex: 'none', height: '56px', width: '100%', fontSize: '16px' }}
               onClick={() => {
                 setIsReturnRequestSuccessOpen(false);
                 resetPOS();
               }}
             >
-              Back to POS
+              Done
             </button>
           </div>
         </div>
@@ -2644,36 +2745,36 @@ export default function Home() {
 
       {/* Refund Success Overlay */}
       {isRefundSuccessOpen && (
-        <div style={styles.paymentViewContainer}>
-          <div style={{ ...styles.successCard, borderTop: '4px solid #0ea5e9' }}>
-            <div style={{ ...styles.successIconCircle, backgroundColor: '#f0f9ff' }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 11l3 3L22 4" />
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.successCard, borderTop: 'none', maxWidth: '500px', padding: '44px' }}>
+            <div style={{ ...styles.successIconCircle, backgroundColor: '#f0f9ff', width: '80px', height: '80px', marginBottom: '32px' }}>
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
-            <h2 style={{ ...styles.successTitle, color: '#0f172a' }}>Refund Successful</h2>
-            <p style={styles.successSubtitle}>The refund has been processed and stock reversed.</p>
+            <h2 style={{ ...styles.successTitle, color: '#0f172a', fontSize: '32px', marginBottom: '16px' }}>Refund Issued</h2>
+            <p style={{ ...styles.successSubtitle, fontSize: '16px', marginBottom: '40px' }}>Transaction reversed successfully. Stock levels have been restored.</p>
 
-            <ReceiptPreview
-              cart={refundDetails.items || []}
-              successDetails={{
-                total: refundDetails.amount,
-                txnId: refundDetails.id,
-                authCode: 'REFUND'
-              }}
-              paymentMethod={refundDetails.method}
-              isRefund={true}
-            />
+            <div style={{ width: '100%', backgroundColor: '#f8fafc', borderRadius: '16px', padding: '24px', marginBottom: '40px', border: '1px solid #e2e8f0' }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ color: '#64748b', fontSize: '13px', fontWeight: '600' }}>Refund Method</span>
+                  <span style={{ color: '#0f172a', fontSize: '13px', fontWeight: '800' }}>{refundDetails.method}</span>
+               </div>
+               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b', fontSize: '13px', fontWeight: '600' }}>Total Amount</span>
+                  <span style={{ color: '#10b981', fontSize: '18px', fontWeight: '900' }}>${String(refundDetails.amount || 0)}</span>
+               </div>
+            </div>
 
-            <div style={{ ...styles.successBtnRow, marginTop: '32px' }}>
-              <button style={{ ...styles.successBtnNewSale, backgroundColor: '#0ea5e9' }} onClick={() => { setIsRefundSuccessOpen(false); resetPOS(); }}>
+            <div style={{ ...styles.successBtnRow, width: '100%', gap: '16px' }}>
+              <button style={{ ...styles.successBtnNewSale, backgroundColor: '#0ea5e9', flex: 1 }} onClick={() => { setIsRefundSuccessOpen(false); resetPOS(); }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                 New Sale
               </button>
-              <button style={styles.successBtnPrint} onClick={() => console.log("Printing refund receipt...")}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                Print Receipt
+              <button style={{ ...styles.successBtnPrint, flex: 1, backgroundColor: '#f1f5f9' }} onClick={() => window.print()}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                Print
               </button>
             </div>
           </div>
@@ -3085,6 +3186,7 @@ const styles = {
     color: '#0ea5e9',
     borderBottom: '2px solid #0ea5e9',
     marginBottom: '-1px',
+    borderRadius: 0,
   },
   mainLayout: {
     display: 'flex',
@@ -4473,78 +4575,106 @@ const styles = {
   processReturnCard: {
     backgroundColor: '#ffffff',
     border: '1px solid #e2e8f0',
-    borderRadius: '12px',
-    padding: '24px',
-    flex: '0 1 280px',
+    borderRadius: '20px',
+    padding: '32px',
+    flex: '0 1 340px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+    gap: '20px',
+    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    cursor: 'pointer',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  processReturnCardActive: {
+    borderColor: '#0ea5e9',
+    boxShadow: '0 20px 25px -5px rgba(14, 165, 233, 0.1), 0 8px 10px -6px rgba(14, 165, 233, 0.1)',
+    transform: 'translateY(-4px)',
   },
   processReturnCardHeader: {
     display: 'flex',
-    alignItems: 'flex-start',
-    gap: '12px',
+    alignItems: 'center',
+    gap: '16px',
   },
   processReturnCardIcon: {
-    width: '44px',
-    height: '44px',
-    backgroundColor: '#e0f2fe',
-    borderRadius: '10px',
+    width: '56px',
+    height: '56px',
+    backgroundColor: '#f0f9ff',
+    borderRadius: '16px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    color: '#0ea5e9',
+    transition: 'all 0.3s ease',
+  },
+  processReturnCardIconActive: {
+    backgroundColor: '#0ea5e9',
+    color: '#ffffff',
   },
   processReturnCardTitle: {
-    fontSize: '15px',
-    fontWeight: '700',
+    fontSize: '18px',
+    fontWeight: '800',
     color: '#0f172a',
     marginBottom: '4px',
+    letterSpacing: '-0.01em',
   },
   processReturnCardSub: {
-    fontSize: '12px',
+    fontSize: '13px',
     color: '#64748b',
-    lineHeight: '1.5',
+    lineHeight: '1.6',
   },
   processReturnLabel: {
     fontSize: '12px',
-    color: '#64748b',
-    fontWeight: '600',
+    color: '#94a3b8',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
   },
   processReturnInput: {
     width: '100%',
-    height: '42px',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    padding: '0 14px',
-    fontSize: '13px',
+    height: '48px',
+    border: '2px solid #f1f5f9',
+    borderRadius: '12px',
+    padding: '0 16px',
+    fontSize: '14px',
+    fontWeight: '600',
     color: '#0f172a',
     outline: 'none',
     backgroundColor: '#f8fafc',
     boxSizing: 'border-box',
+    transition: 'all 0.2s ease',
+  },
+  processReturnInputFocus: {
+    borderColor: '#0ea5e9',
+    backgroundColor: '#ffffff',
+    boxShadow: '0 0 0 4px rgba(14,165,233,0.1)',
   },
   processReturnFindBtn: {
     width: '100%',
-    height: '42px',
+    height: '48px',
     backgroundColor: '#0ea5e9',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
+    borderRadius: '12px',
+    fontSize: '15px',
     fontWeight: '700',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)',
   },
   processReturnManualBtn: {
     width: '100%',
-    height: '42px',
-    backgroundColor: '#334155',
-    color: 'white',
+    height: '48px',
+    backgroundColor: '#f1f5f9',
+    color: '#64748b',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
+    borderRadius: '12px',
+    fontSize: '15px',
     fontWeight: '700',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
 
   // ── Age Verification Modal ───────────────────────
@@ -4829,6 +4959,7 @@ const styles = {
     padding: '32px',
     height: '100%',
     boxSizing: 'border-box',
+    animation: 'fadeIn 0.4s ease-out',
   },
   returnItemListSection: {
     flex: 1,
@@ -4971,89 +5102,140 @@ const styles = {
   returnItemListSection: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: '16px',
-    padding: '32px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+    borderRadius: '24px',
+    padding: '40px',
+    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -4px rgba(0,0,0,0.05)',
     border: '1px solid #f1f5f9',
+    display: 'flex',
+    flexDirection: 'column',
   },
   returnHeaderSection: {
-    marginBottom: '32px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '40px',
+  },
+  returnHeaderLeft: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  returnTitleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  returnBackBtn: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '12px',
+    backgroundColor: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    color: '#64748b',
+    transition: 'all 0.2s ease',
   },
   returnMainTitle: {
-    fontSize: '24px',
+    fontSize: '28px',
     fontWeight: '800',
     color: '#0f172a',
-    margin: '0 0 8px 0',
+    margin: 0,
+    letterSpacing: '-0.02em',
   },
   returnMetadata: {
     fontSize: '14px',
     color: '#0ea5e9',
     fontWeight: '600',
-    margin: '0 0 4px 0',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    backgroundColor: '#f0f9ff',
+    padding: '6px 12px',
+    borderRadius: '8px',
+    width: 'fit-content',
   },
   returnSelectPrompt: {
-    fontSize: '13px',
+    fontSize: '14px',
     color: '#64748b',
-    margin: 0,
+    margin: '8px 0 0 0',
   },
   returnTable: {
     width: '100%',
-    borderCollapse: 'collapse',
+    borderCollapse: 'separate',
+    borderSpacing: '0 16px',
   },
   returnTableHeader: {
     textAlign: 'left',
-    padding: '12px 16px',
+    padding: '0 20px 8px 20px',
     fontSize: '12px',
-    fontWeight: '700',
-    color: '#64748b',
+    fontWeight: '800',
+    color: '#94a3b8',
     textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    borderBottom: '2px solid #f1f5f9',
+    letterSpacing: '0.1em',
   },
   returnRow: {
-    borderBottom: '1px solid #f1f5f9',
-    transition: 'all 0.2s',
+    backgroundColor: '#ffffff',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+  },
+  returnRowActive: {
+    backgroundColor: '#f8fafc',
+    transform: 'scale(1.005)',
+    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)',
   },
   returnCell: {
-    padding: '16px',
+    padding: '24px 20px',
     fontSize: '14px',
     color: '#334155',
+    borderTop: '1px solid #f1f5f9',
+    borderBottom: '1px solid #f1f5f9',
   },
   returnCellFirst: {
-    paddingLeft: 0,
+    borderLeft: '1px solid #f1f5f9',
+    borderTopLeftRadius: '16px',
+    borderBottomLeftRadius: '16px',
+    paddingLeft: '24px',
   },
   returnCellLast: {
-    paddingRight: 0,
+    borderRight: '1px solid #f1f5f9',
+    borderTopRightRadius: '16px',
+    borderBottomRightRadius: '16px',
+    paddingRight: '24px',
   },
   returnProductInfo: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    gap: '16px',
   },
   returnProductImage: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '10px',
+    width: '52px',
+    height: '52px',
+    borderRadius: '12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)',
   },
   returnProductName: {
-    fontSize: '14px',
-    fontWeight: '700',
+    fontSize: '15px',
+    fontWeight: '800',
     color: '#0f172a',
+    marginBottom: '2px',
   },
   returnProductSku: {
-    fontSize: '11px',
+    fontSize: '12px',
     color: '#94a3b8',
-    marginTop: '2px',
+    fontWeight: '500',
   },
   returnSummaryTotals: {
-    borderTop: '1px solid #f1f5f9',
-    paddingTop: '20px',
+    borderTop: '2px dashed #f1f5f9',
+    paddingTop: '24px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
+    gap: '16px',
   },
   returnSummaryTotalRow: {
     display: 'flex',
@@ -5061,14 +5243,15 @@ const styles = {
     alignItems: 'center',
   },
   returnSummaryMainTotal: {
-    fontSize: '22px',
-    fontWeight: '800',
-    color: '#0f172a',
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#64748b',
   },
   returnRefundValue: {
-    fontSize: '28px',
-    fontWeight: '800',
+    fontSize: '32px',
+    fontWeight: '900',
     color: '#10b981',
+    letterSpacing: '-0.02em',
   },
   returnManagerBtn: {
     width: '100%',

@@ -146,6 +146,8 @@ class TransactionItem(db.Model):
             "product_name": self.product.name if self.product else None,
             "product_sku": self.product.sku if self.product else None,
             "return_policy": self.product.return_policy if self.product else "Returnable",
+            "product_image": self.product.image_url if self.product else None,
+            "product_bg": self.product.bg if self.product else "#f8fafc",
             "quantity": self.quantity,
             "unit_price": self.unit_price,
             "unit_discount": self.unit_discount
